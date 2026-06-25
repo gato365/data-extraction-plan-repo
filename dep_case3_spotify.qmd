@@ -1,0 +1,445 @@
+---
+title: "DEP Case 3 — R Extraction Code"
+subtitle: "Spotify Audio Features via Web API (September 2021)"
+author: "Immanuel Williams"
+date: "2021-09-01"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Steps"
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    highlight-style: github
+    theme: cosmo
+    self-contained: true
+    df-print: kable
+execute:
+  eval: false
+  echo: true
+  warning: true
+  message: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+# Overview {.unnumbered}
+
+This document contains the fully annotated R extraction code for **DEP
+Case 3: Spotify Audio Features via Web API**. Each section corresponds
+to a step in the Data Extraction Plan (see `dep_appendix_nocode.tex`,
+Section C). The code is written to be run top-to-bottom as a single
+workflow.
+
+::: callout-warning
+## Temporal context — read before running
+
+This DEP and code were written as if it were **September 2021**. Since
+then:
+
+-   **November 2024:** Spotify deprecated the Audio Features and Audio
+    Analysis endpoints for new developer applications.
+-   **March 2025:** Extended API access restricted to apps with ≥250,000
+    monthly active users and a registered business.
+-   **February 2026:** Developer Mode requires a Premium subscription;
+    limited to 5 users.
+-   **Late 2024:** `spotifyr` was removed from CRAN following the API
+    deprecation.
+
+**This code will not run with a new Spotify developer account as of
+2025.** It is preserved here to document the extraction process and
+validate that all four contingency scenarios in DEP C.5 materialized. To
+work with Spotify-like audio features today, use the fallbacks
+documented in DEP C.5: MusicBrainz, ListenBrainz, or Last.fm.
+:::
+
+::: callout-note
+## DEP Verdict for this case (September 2021)
+
+**PROCEED** with documented ambiguity about the "train machine learning
+models" clause. The researcher interprets academic multiple linear
+regression as distinct from building a competing recommendation service.
+This interpretation is recorded, not assumed. See DEP Section C.2.
+:::
+
+------------------------------------------------------------------------
+
+# Step 1 — Load Packages and Authenticate
+
+**DEP Reference:** C.3 Access & Technical Plan — *"Authentication: OAuth
+2.0. Client ID and Client Secret stored as environment variables. Never
+hardcoded in scripts."*
+
+Credentials are read from environment variables, not from a
+configuration file checked into version control. This is non-negotiable:
+hardcoded API keys in scripts are a security vulnerability and a
+reproducibility hazard.
+
+::: callout-tip
+## Setting credentials safely
+
+Before running this script, set your credentials in your `.Renviron`
+file (never in the script itself):
+
+```         
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+```
+
+Then restart R. Use `usethis::edit_r_environ()` to open the file.
+:::
+
+```{r}
+#| label: setup
+
+# DEP C.5 Contingency 3: If spotifyr is removed from CRAN,
+# pin the current version using renv.
+# Run renv::snapshot() after installing to lock this version.
+library(spotifyr)   # Thompson et al., v2.2.4 — see DEP C.1
+library(dplyr)
+library(purrr)
+
+# --- DEP C.3: Authenticate using environment variables only ---
+# If credentials are missing, stop with an informative message.
+if (Sys.getenv("SPOTIFY_CLIENT_ID") == "") {
+  stop(
+    "SPOTIFY_CLIENT_ID not found in environment.\n",
+    "Set it in .Renviron and restart R. See DEP C.3 for details."
+  )
+}
+
+access_token <- get_spotify_access_token()
+cat("Authentication successful.\n")
+
+# --- DEP C.3: Storage paths ---
+dir.create("data/raw/spotify", recursive = TRUE, showWarnings = FALSE)
+```
+
+------------------------------------------------------------------------
+
+# Step 2 — Define the Artist List (Sampling Strategy)
+
+**DEP Reference:** C.4 Scope & Sampling — *"Stratified sampling:
+complete discographies for the top 10 artists by Spotify monthly
+listeners in each of 6 genres."*
+
+Artist IDs are resolved and recorded in the DEP before extraction
+begins, not looked up dynamically during the run. This makes the sample
+definition auditable and stable.
+
+::: callout-important
+## Documented sampling bias (DEP C.4)
+
+Spotify's Browse and Search endpoints return results ranked by
+popularity. There is no mechanism for random artist retrieval via the
+API. The sample is therefore biased toward the high end of the
+popularity distribution.
+
+This is a property of the data **source**, not solely a choice of the
+analyst. The DEP records this distinction explicitly so that readers of
+the eventual analysis understand the provenance of the range
+restriction.
+:::
+
+```{r}
+#| label: artist-list
+
+# Spotify Artist IDs for top-10 artists per genre
+# (resolved before extraction — not dynamically queried)
+# Full list; shown here for pop and rock as illustration.
+
+artist_ids <- list(
+  pop = c(
+    "06HL4z0CvFAxyc27GXpf02",   # Taylor Swift
+    "1uNFoZAHBGtllmzznpCI3s",   # Justin Bieber
+    "3TVXtAsR1Inumwj472S9r4",   # Drake
+    "4dpARuHxo51G3z768sgnrY",   # Adele
+    "6eUKZXaKkcviH0Ku9w2n3V",   # Ed Sheeran
+    "7dGJo4pcD2V6oG8kP0tJRR",   # Eminem
+    "1Xyo4u8uXC1ZmMpatF05PJ",   # The Weeknd
+    "66CXWjxzNUsdJxJ2JdwvnR",   # Ariana Grande
+    "0du5cEVh5yTK9QJze8zA0C",   # Bruno Mars
+    "3WrFJ7ztbogyGnTHbHJFl2"    # The Beatles
+  ),
+  rock = c(
+    "22bE4uQ6baNwSHPVcDxLCe",   # The Rolling Stones
+    "36QJpDe2go2KgaRleHCDTp",   # Led Zeppelin
+    "711MCceyCBcFnzjGY4Q7Un",   # AC/DC
+    "5K4W6rqBFWDnAN6FQUkS6x",   # Kanye West (crossover)
+    "12Chz98pHFMPJEknJQMWqN",   # Metallica
+    "0k17h0D3J5VfsdmQ1iZtE9",   # Pink Floyd
+    "0oSGxfWSnnOXhD2fKuz2Gy",   # David Bowie
+    "1Cs0zKBU1kc0i8ypK3B9ai",   # Radiohead
+    "7u6zL7kqpgLPiNbuCxsdAL",   # Arctic Monkeys
+    "3YQKmKGau1PzlVlkL1iAx7"    # Tame Impala
+  )
+  # hip-hop, country, electronic, r-and-b: full list in supplementary
+  # materials. Pattern is identical — replace artist IDs only.
+)
+
+total_artists <- sum(lengths(artist_ids))
+cat("Total artists to extract:", total_artists, "\n")
+cat("Genres:", paste(names(artist_ids), collapse = ", "), "\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 3 — Define the Extraction Function
+
+**DEP Reference:** C.3 Access & Technical Plan — rate limiting, error
+handling, exclusion criteria
+
+```{r}
+#| label: extract-function
+
+get_artist_features <- function(artist_id, genre) {
+
+  # --- DEP C.3: Rate limiting ---
+  # Empirically determined limit ~100 req/min (see DEP C.3).
+  # 0.5 sec delay keeps us well under that threshold.
+  Sys.sleep(0.5)
+
+  tryCatch({
+    feats <- get_artist_audio_features(
+      artist         = artist_id,
+      authorization  = access_token,
+      include_groups = "album"  # DEP C.4 Exclusion: compilations excluded
+                                # by requesting only "album" type
+    )
+
+    # Tag with genre for stratified analysis
+    feats$genre <- genre
+    cat(sprintf("  [OK] %s (%s) — %d tracks\n",
+                feats$artist_name[1], genre, nrow(feats)))
+    return(feats)
+
+  }, error = function(e) {
+    # HTTP 429 (Too Many Requests) or other error: log and continue
+    cat(sprintf("  [FAIL] %s (%s) — %s\n", artist_id, genre, e$message))
+    return(NULL)
+  })
+}
+```
+
+------------------------------------------------------------------------
+
+# Step 4 — Run the Extraction
+
+**DEP Reference:** C.4 Scope & Sampling
+
+`map2_dfr()` iterates over the artist IDs and genre labels in parallel,
+calling the extraction function for each artist and binding results
+row-wise into a single data frame.
+
+```{r}
+#| label: extract
+
+# Build parallel vectors of (artist_id, genre) for map2_dfr
+genre_labels <- rep(names(artist_ids), lengths(artist_ids))
+artist_vec   <- unlist(artist_ids)
+
+cat("=== Starting Spotify extraction ===\n")
+cat("Total artists:", length(artist_vec), "\n\n")
+
+all_features <- map2_dfr(genre_labels, artist_vec,
+                         ~ get_artist_features(.y, .x))
+
+cat("\n=== Extraction complete ===\n")
+cat("Total tracks extracted:", nrow(all_features), "\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 5 — Apply Exclusion Criteria
+
+**DEP Reference:** C.4 Scope & Sampling — *"Exclusion criteria
+pre-specified: compilation albums; tracks with popularity = 0; tracks
+missing audio features."*
+
+Each exclusion is applied sequentially with a count logged before and
+after. This produces the audit trail required by the DEP.
+
+```{r}
+#| label: exclusions
+
+n_start <- nrow(all_features)
+cat("Tracks before exclusions:", n_start, "\n\n")
+
+# --- DEP C.4 Exclusion 1: Popularity = 0 ---
+# Indicates inactive or removed content.
+excl_zero_pop <- all_features |> filter(track_popularity == 0)
+cat("Excluded (popularity = 0):", nrow(excl_zero_pop), "\n")
+all_features <- all_features |> filter(track_popularity > 0)
+
+# --- DEP C.4 Exclusion 2: Missing audio features ---
+# Any track missing values in the 13 feature columns is excluded.
+audio_feature_cols <- c(
+  "danceability", "energy", "loudness", "speechiness",
+  "acousticness", "instrumentalness", "liveness", "valence",
+  "tempo", "duration_ms", "time_signature", "key", "mode"
+)
+excl_missing <- all_features |>
+  filter(if_any(all_of(audio_feature_cols), is.na))
+cat("Excluded (missing audio features):", nrow(excl_missing), "\n")
+all_features <- all_features |>
+  filter(!if_any(all_of(audio_feature_cols), is.na))
+
+n_end <- nrow(all_features)
+cat("\nTracks after all exclusions:", n_end, "\n")
+cat("Total excluded:", n_start - n_end, "\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 6 — Validate Extraction Results
+
+**DEP Reference:** C.5 Validation & Contingency — *"Validation
+checkpoints pre-specified before extraction begins."*
+
+```{r}
+#| label: validate
+
+cat("=== Running validation checks ===\n\n")
+
+# --- DEP C.5: Check 1 — Minimum tracks per artist ---
+artist_counts <- all_features |> count(artist_name)
+under_minimum <- artist_counts |> filter(n < 20)
+if (nrow(under_minimum) > 0) {
+  warning(
+    "The following artists have fewer than 20 tracks — ",
+    "likely a retrieval error:\n",
+    paste(under_minimum$artist_name, collapse = ", ")
+  )
+} else {
+  cat("Check 1 passed: all artists have >= 20 tracks.\n")
+}
+
+# --- DEP C.5: Check 2 — Range checks on bounded audio features ---
+bounded_cols <- c("danceability", "energy", "speechiness",
+                  "acousticness", "instrumentalness", "liveness", "valence")
+for (col in bounded_cols) {
+  out_of_range <- sum(
+    all_features[[col]] < 0 | all_features[[col]] > 1,
+    na.rm = TRUE
+  )
+  if (out_of_range > 0) {
+    stop("VALIDATION FAILED: ", out_of_range,
+         " out-of-range values in column: ", col)
+  }
+}
+cat("Check 2 passed: all bounded audio features in [0, 1].\n")
+
+# --- DEP C.5: Check 3 — Tempo range ---
+tempo_violations <- sum(
+  all_features$tempo < 40 | all_features$tempo > 220,
+  na.rm = TRUE
+)
+if (tempo_violations > 0) {
+  warning(tempo_violations, " tracks with tempo outside 40–220 BPM.")
+} else {
+  cat("Check 3 passed: all tempo values in 40–220 BPM.\n")
+}
+
+# --- DEP C.5: Check 4 — Popularity is integer in [0, 100] ---
+stopifnot(
+  "Popularity out of [0, 100]" =
+    all(all_features$track_popularity >= 0 &
+        all_features$track_popularity <= 100,
+        na.rm = TRUE)
+)
+cat("Check 4 passed: all popularity values in [0, 100].\n")
+
+# --- DEP C.5: Check 5 — Duplicate track IDs ---
+n_dupes <- sum(duplicated(all_features$track_id))
+if (n_dupes > 0) {
+  warning(n_dupes, " duplicate track IDs detected — investigate ",
+          "before analysis (may indicate artists shared across genres).")
+} else {
+  cat("Check 5 passed: no duplicate track IDs.\n")
+}
+
+cat("\nAll validation checks complete.\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 7 — Save in Two Formats
+
+**DEP Reference:** C.3 Access & Technical Plan — *"Two formats per
+extraction: `.rds` (R native, preserving data types) for analysis;
+`.csv` for portability."*
+
+```{r}
+#| label: save
+
+timestamp <- format(Sys.Date(), "%Y-%m-%d")
+
+rds_path <- paste0("data/raw/spotify/spotify_all_", timestamp, ".rds")
+csv_path <- paste0("data/raw/spotify/spotify_all_", timestamp, ".csv")
+
+saveRDS(all_features, rds_path)
+write.csv(all_features, csv_path, row.names = FALSE)
+
+cat("Saved .rds to:", rds_path, "\n")
+cat("Saved .csv to:", csv_path, "\n")
+cat("\nExtraction summary:\n")
+cat("  Tracks:     ", nrow(all_features), "\n")
+cat("  Variables:  ", ncol(all_features), "\n")
+cat("  Genres:     ", length(unique(all_features$genre)), "\n")
+cat("  Artists:    ", length(unique(all_features$artist_name)), "\n")
+cat("  Date:       ", timestamp, "\n")
+```
+
+------------------------------------------------------------------------
+
+# Contingency Notes {.unnumbered}
+
+**DEP Reference:** C.5 Validation & Contingency
+
+As documented in the DEP, four contingency scenarios were identified in
+September 2021. All four materialized between 2024 and 2026:
+
+**Scenario 1 — Rate limits tighten:** Increase `Sys.sleep()` from 0.5 to
+1.0 or 2.0 seconds. Spread extraction across multiple sessions using a
+checkpoint file that records which artist IDs have already been
+processed.
+
+**Scenario 2 — Audio Features endpoint deprecated (MATERIALIZED Nov.
+2024):** Fall back to the Kaggle "Spotify Tracks Dataset" snapshot.
+Document this substitution in your analysis with the limitations noted
+in DEP C.1 (no DEP for the Kaggle dataset; provenance unclear).
+
+**Scenario 3 — `spotifyr` removed from CRAN (MATERIALIZED):** Restore
+the pinned version using:
+
+``` r
+renv::restore()   # requires renv.lock created at time of extraction
+```
+
+If no lock file exists, install from GitHub:
+
+``` r
+remotes::install_github("charlie86/spotifyr@v2.2.4")
+```
+
+**Scenario 4 — Spotify developer account suspended (effectively
+materialized):** Pivot to one of these alternative audio metadata
+sources:
+
+| Source | Programmatic Access | Coverage | Notes |
+|----------------|------------------|----------------|----------------------|
+| MusicBrainz | Free REST API | \~2M releases | No audio features; metadata only |
+| ListenBrainz | Free REST API | Listening data | Community-submitted |
+| Last.fm | Free API | \~185M tracks | Scrobble-based features |
+| AcousticBrainz | Static dataset (archive) | \~2M recordings | Deprecated; archived only |
+
+------------------------------------------------------------------------
+
+# Session Info {.unnumbered}
+
+```{r}
+#| label: session-info
+sessionInfo()
+```

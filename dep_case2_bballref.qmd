@@ -1,0 +1,316 @@
+---
+title: "DEP Case 2 — R Extraction Code"
+subtitle: "Basketball Reference NBA Player Statistics (February 2026)"
+author: "Immanuel Williams"
+date: "2026-02-26"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Steps"
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    highlight-style: github
+    theme: cosmo
+    self-contained: true
+    df-print: kable
+execute:
+  eval: false
+  echo: true
+  warning: true
+  message: true
+---
+
+# Overview {.unnumbered}
+
+This document contains the fully annotated R extraction code for **DEP
+Case 2: Basketball Reference NBA Player Statistics**. Each section
+corresponds to a step in the Data Extraction Plan (see
+`dep_appendix_nocode.tex`, Section B). The code is written to be run
+top-to-bottom as a single workflow.
+
+::: callout-warning
+## DEP Verdict for this case
+**PROCEED WITH CONDITIONS.** The Terms of Use contain a broad prohibition
+on automated access, but the qualifier "in a manner that adversely impacts
+site performance or access" limits its scope. The `robots.txt` actively
+permits crawling of the exact pages needed and specifies a `Crawl-delay: 3`.
+This decision is documented, visible, and auditable. See DEP Section B.2.
+:::
+
+---
+
+# Step 1 — Load Packages and Set DEP Parameters
+
+**DEP Reference:** B.1 Purpose & Source, B.3 Access & Technical Plan
+
+All extraction parameters defined in the DEP are declared as constants
+at the top of the script. This makes it immediately clear what the
+extraction covers without reading through the logic.
+
+```{r}
+#| label: setup
+
+library(rvest)    # HTML scraping
+library(dplyr)    # Data manipulation
+library(purrr)    # Functional iteration: map_dfr()
+library(xml2)     # Saving raw HTML snapshots
+
+# --- DEP B.3: Extraction parameters ---
+# Seasons: 2000-01 through 2024-25 (the year listed = end of season)
+SEASONS   <- 2001:2025
+
+# Rate limit: 5 seconds between all requests
+# DEP B.2 justification: exceeds robots.txt Crawl-delay of 3 seconds;
+# keeps total traffic to 52 requests over ~4.5 minutes.
+DELAY_SEC <- 5
+
+# --- DEP B.3: Storage paths ---
+RAW_DIR <- "data/raw/bball_ref/"
+dir.create(paste0(RAW_DIR, "html"), recursive = TRUE, showWarnings = FALSE)
+dir.create(paste0(RAW_DIR, "csv"),  recursive = TRUE, showWarnings = FALSE)
+
+cat("Seasons to extract:", length(SEASONS), "\n")
+cat("Table types: per_game, advanced\n")
+cat("Total requests planned:", length(SEASONS) * 2, "\n")
+cat("Estimated time at", DELAY_SEC, "sec delay:",
+    round(length(SEASONS) * 2 * DELAY_SEC / 60, 1), "minutes\n")
+```
+
+---
+
+# Step 2 — Define the Scraping Function
+
+**DEP Reference:** B.3 Access & Technical Plan
+
+The single-season scraper encapsulates all the parsing decisions documented
+in the DEP's "Known Parsing Challenges" section. Each challenge is handled
+in a labelled block so the connection to the DEP is traceable.
+
+The function uses `tryCatch()` to log failures without aborting the full
+extraction. This is important: if one season page fails, all others should
+still complete.
+
+```{r}
+#| label: scrape-function
+
+scrape_season <- function(year, type = "per_game") {
+
+  # --- Build URL (DEP B.3: Target URLs) ---
+  url <- sprintf(
+    "https://www.basketball-reference.com/leagues/NBA_%d_%s.html",
+    year, type
+  )
+
+  # --- DEP B.3: Rate limiting ---
+  # Sys.sleep() called BEFORE the request so the delay is always honored,
+  # even if the previous request errored out.
+  Sys.sleep(DELAY_SEC)
+
+  tryCatch({
+    # Fetch and snapshot raw HTML (reproducibility anchor)
+    page <- read_html(url)
+    write_xml(page,
+              sprintf("%shtml/%s_%d.html", RAW_DIR, type, year))
+
+    # --- DEP B.3 Known Parsing Challenge: table ID ---
+    # Basketball Reference uses HTML id attributes to identify stat tables.
+    table_id <- if (type == "per_game") "per_game_stats" else "advanced"
+
+    raw_table <- page |>
+      html_element(paste0("#", table_id)) |>
+      html_table()
+
+    # --- DEP B.3 Known Parsing Challenge: repeated header rows ---
+    # Basketball Reference injects the header row every ~20 rows for
+    # readability. These rows have "Rk" in the Rk column and must be removed.
+    df <- raw_table |>
+      filter(Rk != "Rk")
+
+
+
+    # Tag with season year for merging later
+    df$season <- year
+
+    cat(sprintf("  [OK] %s %d — %d player rows\n", type, year, nrow(df)))
+    return(df)
+
+  }, error = function(e) {
+    # Log the failure but return NULL so map_dfr continues
+    cat(sprintf("  [FAIL] %s %d — %s\n", type, year, e$message))
+    return(NULL)
+  })
+}
+```
+
+---
+
+# Step 3 — Extract All Seasons
+
+**DEP Reference:** B.3 Access & Technical Plan, B.4 Scope & Sampling
+
+`map_dfr()` applies the scraper to every season and row-binds the results.
+Progress is printed for each request so long-running extractions are
+easy to monitor.
+
+::: callout-note
+## Expected runtime
+At 5 seconds per request × 52 requests ≈ **4.5 minutes**. Do not interrupt
+the extraction mid-run; partial results would require re-running from the
+beginning (or implementing a checkpoint/resume system not shown here).
+:::
+
+```{r}
+#| label: extract
+
+cat("=== Starting per-game extraction ===\n")
+per_game_data <- map_dfr(SEASONS, scrape_season, type = "per_game")
+
+cat("\n=== Starting advanced stats extraction ===\n")
+advanced_data <- map_dfr(SEASONS, scrape_season, type = "advanced")
+
+cat("\n=== Extraction complete ===\n")
+cat("Per-game rows:", nrow(per_game_data), "\n")
+cat("Advanced rows:", nrow(advanced_data), "\n")
+```
+
+---
+
+# Step 4 — Validate Extraction Results
+
+**DEP Reference:** B.5 Validation & Contingency — *"Validation checkpoints
+pre-specified before extraction begins."*
+
+All three validation checks were defined in the DEP before any data was
+seen. The spot-check value (Curry 2015–16 3PA = 11.2) was identified from
+publicly known statistics before running the scraper.
+
+```{r}
+#| label: validate
+
+# --- DEP B.5: Validation Check 1 — Row counts per season ---
+# Expected: 400–600 rows per season. Fewer suggests a parsing failure
+# (e.g., wrong table ID, repeated-header rows not removed, etc.)
+season_counts <- per_game_data |> count(season)
+
+under_threshold <- season_counts |> filter(n < 400)
+if (nrow(under_threshold) > 0) {
+  stop(
+    "VALIDATION FAILED: the following seasons have fewer than 400 rows:\n",
+    paste(under_threshold$season, collapse = ", "),
+    "\nInvestigate before proceeding to cleaning."
+  )
+}
+cat("Check 1 passed: all seasons have >= 400 rows.\n")
+cat("Season row range:", min(season_counts$n), "–", max(season_counts$n), "\n")
+
+# --- DEP B.5: Validation Check 2 — Spot-check value ---
+# Stephen Curry 2015-16: 3PA per game = 11.2 (pre-specified in DEP)
+curry_val <- per_game_data |>
+  filter(Player == "Stephen Curry", season == 2016) |>
+  pull("3PA") |>
+  as.numeric()
+
+stopifnot(
+  "Curry 2015-16 3PA mismatch — extraction or parsing error" =
+    length(curry_val) == 1 && abs(curry_val - 11.2) < 0.5
+)
+cat("Check 2 passed: Curry 2015-16 3PA =", curry_val, "(expected ~11.2).\n")
+
+# --- DEP B.5: Validation Check 3 — Column counts ---
+pg_cols  <- ncol(per_game_data)
+adv_cols <- ncol(advanced_data)
+cat("Check 3: per-game columns =", pg_cols,
+    "| advanced columns =", adv_cols, "\n")
+if (pg_cols < 25 || adv_cols < 20) {
+  warning("Fewer columns than expected — verify table parsing.")
+}
+cat("All validation checks complete.\n")
+```
+
+---
+
+# Step 5 — Apply Scope Decisions
+
+**DEP Reference:** B.4 Scope & Sampling
+
+Pre-specified exclusion criteria are applied here as explicit, labelled
+filtering steps. The criteria were committed to in the DEP before seeing
+the data distribution.
+
+```{r}
+#| label: scope
+
+# --- DEP B.4 Exclusion Criterion: minimum games threshold ---
+# Players with < 20 games played are RETAINED in raw data but
+# flagged so they can be excluded from regression later.
+# This decision was made in the DEP — not after observing the distribution.
+
+per_game_data <- per_game_data |>
+  mutate(
+    G = as.integer(G),
+    exclude_regression = G < 20,  # TRUE = exclude from regression
+    exclusion_reason   = ifelse(G < 20, "fewer_than_20_games", NA_character_)
+  )
+
+excluded_count <- sum(per_game_data$exclude_regression, na.rm = TRUE)
+cat("Players flagged for regression exclusion (< 20 G):", excluded_count, "\n")
+cat("Players retained for regression:",
+    nrow(per_game_data) - excluded_count, "\n")
+```
+
+---
+
+# Step 6 — Save Raw Extracted Data
+
+**DEP Reference:** B.3 Access & Technical Plan — Storage plan
+
+```{r}
+#| label: save
+
+timestamp <- format(Sys.Date(), "%Y-%m-%d")
+
+per_game_path <- paste0(RAW_DIR, "csv/per_game_all_", timestamp, ".csv")
+advanced_path <- paste0(RAW_DIR, "csv/advanced_all_", timestamp, ".csv")
+
+write.csv(per_game_data, per_game_path, row.names = FALSE)
+write.csv(advanced_data, advanced_path, row.names = FALSE)
+
+cat("Saved per-game data to:", per_game_path, "\n")
+cat("Saved advanced data to:", advanced_path, "\n")
+cat("\nExtraction complete:", timestamp, "\n")
+cat("Raw HTML files in:", paste0(RAW_DIR, "html/"), "\n")
+```
+
+---
+
+# Contingency Notes {.unnumbered}
+
+**DEP Reference:** B.5 Validation & Contingency
+
+If Basketball Reference blocks your IP address (`HTTP 403` or no
+response):
+
+1. Wait 24 hours without retrying
+2. On retry, increase `DELAY_SEC` to 10 or higher
+3. If blocking persists or Sports Reference makes contact, stop
+   scraping and switch to one of the documented fallbacks:
+   - **Manual CSV exports:** use the site's built-in download buttons
+     (permitted by ToS; no automation involved)
+   - **hoopR:** `install.packages("hoopR")` — wraps the NBA Stats API;
+     note this source is less stable and column names differ
+   - **Kaggle snapshots:** search for Basketball Reference datasets;
+     note they may not cover the full 2000–2025 window
+
+All fallbacks have documented limitations — the DEP records these so
+the limitations are visible before a crisis forces a hasty decision.
+
+---
+
+# Session Info {.unnumbered}
+
+```{r}
+#| label: session-info
+sessionInfo()
+```

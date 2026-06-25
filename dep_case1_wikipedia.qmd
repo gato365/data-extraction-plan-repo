@@ -1,0 +1,290 @@
+---
+title: "DEP Case 1 — R Extraction Code"
+subtitle: "Wikipedia U.S. Population Tables (February 2026)"
+author: "Immanuel Williams"
+date: "2026-02-26"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Steps"
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    highlight-style: github
+    theme: cosmo
+    self-contained: true
+    df-print: kable
+execute:
+  eval: false
+  echo: true
+  warning: true
+  message: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+# Overview {.unnumbered}
+
+This document contains the fully annotated R extraction code for **DEP
+Case 1: Wikipedia U.S. Population Tables**. Each section corresponds to
+a step in the Data Extraction Plan (see `dep_appendix_nocode.tex`,
+Section A). The code is written to be run top-to-bottom as a single
+workflow. Steps are numbered to match the DEP.
+
+::: callout-important
+## DEP Verdict for this case
+
+**PROCEED.** Legal landscape is clear and unambiguous (CC BY-SA 4.0
+license, public domain data, no PII, no ToS conflict). See DEP Section
+A.2.
+:::
+
+------------------------------------------------------------------------
+
+# Step 1 — Load Packages and Define the Source URL
+
+**DEP Reference:** A.1 Purpose & Source, A.3 Access & Technical Plan
+
+The URL is defined as a named constant at the top of the script. This
+makes it easy to update if the Wikipedia article is moved, and makes the
+source auditable without reading through the code.
+
+```{r}
+#| label: setup
+
+library(rvest)    # HTML scraping: read_html(), html_table(), html_element()
+library(dplyr)    # Data manipulation: filter(), mutate(), count()
+library(stringr)  # String Manipulation aspects
+library(xml2)     # Saving raw HTML snapshot: write_xml()
+
+# --- DEP A.3: Source URL (the single resource being extracted) ---
+# Defined once here; never hardcoded elsewhere in the script.
+WIKI_URL <- paste0(
+  "https://en.wikipedia.org/wiki/",
+  "List_of_U.S._states_and_territories_by_historical_population"
+)
+
+# --- DEP A.3: Storage paths ---
+dir.create("data/raw/wikipedia", recursive = TRUE, showWarnings = FALSE)
+```
+
+------------------------------------------------------------------------
+
+# Step 2 — Fetch the Page and Save the Reproducibility Anchor
+
+**DEP Reference:** A.3 Access & Technical Plan — *"A copy of the raw
+HTML page will be saved alongside the extracted CSV."*
+
+Wikipedia is a living document. Editors can change values, add columns,
+or restructure the article at any time. Saving the raw HTML at the
+moment of extraction creates a **reproducibility anchor**: anyone who
+later wants to verify the extracted data can compare it against the
+exact HTML source that was used.
+
+```{r}
+#| label: fetch-and-snapshot
+
+# Record the extraction date — used in all filenames for this run
+timestamp <- format(Sys.Date(), "%Y-%m-%d")
+
+# Fetch the page (single HTTP GET request — no auth, no rate limit needed)
+raw_html <- read_html(WIKI_URL)
+
+# Save raw HTML snapshot immediately, before any parsing
+# This is the reproducibility anchor described in DEP A.3.
+snapshot_path <- paste0("data/raw/wikipedia/wikipedia_population_raw_",
+                        timestamp, ".html")
+write_xml(raw_html, snapshot_path)
+cat("HTML snapshot saved to:", snapshot_path, "\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 3 — Extract the Target Table
+
+**DEP Reference:** A.3 Access & Technical Plan — *"Target table
+identified by index position (third table as of January 2025). Known
+fragility: if the article is reorganized, the index may silently capture
+the wrong table."*
+
+The DEP documents this fragility explicitly. The mitigation is mandatory
+visual inspection in Step 4 before any downstream processing.
+
+```{r}
+#| label: extract-table
+
+# Parse all tables on the page
+all_tables <- raw_html |> html_table(fill = TRUE)
+cat("Total tables found on page:", length(all_tables), "\n")
+
+# Extract the target table by index
+# DEP NOTE: This index was verified as of January 2025.
+#           If the article is restructured, update this index and
+#           re-verify with the spot-checks in Step 5.
+TARGET_INDEX <- 4
+pop_table <- all_tables[[TARGET_INDEX]]
+
+cat("Extracted table dimensions:",
+    nrow(pop_table), "rows x", ncol(pop_table), "cols\n")
+```
+
+------------------------------------------------------------------------
+
+# Step 4 — Mandatory Visual Inspection
+
+**DEP Reference:** A.3 Access & Technical Plan — *"The extraction script
+must print the first 3 rows before downstream processing."*
+
+This step cannot be skipped or suppressed. Its purpose is to verify that
+the correct table was captured before any transformations make it harder
+to detect the wrong-table error.
+
+```{r}
+#| label: inspect
+
+# Print the first 3 rows — confirm this looks like a state-population table
+# Expected: row names are state names, column names are census years
+print(head(pop_table, 3))
+
+# Also check the column names to confirm census years are present
+cat("\nColumn names (first 10):\n")
+print(names(pop_table)[1:10])
+```
+
+------------------------------------------------------------------------
+
+# Step 5 — Spot-Check Validation
+
+**DEP Reference:** A.5 Validation & Contingency — *"Pre-specified
+spot-check values (from Census Bureau publications)."*
+
+These three values were identified in the DEP **before** extraction, not
+after looking at the data. This is the extraction equivalent of
+preregistration: defining the validation criteria in advance removes the
+possibility of post-hoc rationalization.
+
+::: callout-note
+## Why pre-specification matters
+
+A validation checkpoint defined *after* looking at the data is
+indistinguishable from confirming what you already know. Pre-specified
+checkpoints constrain what counts as a passing extraction.
+:::
+
+```{r}
+#| label: validate
+
+# --- Pre-specified spot-check values (DEP A.5) ---
+# Sources: 2020 Decennial Census (CA, WY)
+spot_checks <- tibble(
+  state    = c("California", "Wyoming"),
+  expected = c(39538223L, 576851L)
+)
+
+# Value spot-checks
+# These will throw an informative error if the extracted values don't match.
+# Adjust the column references after cleaning column names in your workflow.
+pop_table |>
+  filter(.data[[names(pop_table)[1]]] %in% spot_checks$state) |>
+  select(state = 1, value = `2020`) |>
+  mutate(value = as.integer(str_remove_all(value, ","))) |>  # strip commas before coercion
+  left_join(spot_checks, by = "state") |>
+  mutate(match = value == expected) |>
+  {
+    \(df) {
+      if (!all(df$match)) {
+        mismatches <- df |> 
+          filter(!match)
+        stop("Spot-check failed for: ",
+             paste(mismatches$state, collapse = ", "),
+             " — check table index or source change")
+      }
+      cat("All spot-checks passed.\n")
+      df
+    }
+  }()
+```
+
+------------------------------------------------------------------------
+
+# Step 6 — Apply Scope Decisions and Save
+
+**DEP Reference:** A.4 Scope & Sampling
+
+The scope decisions documented in the DEP are applied here as explicit
+filtering steps. Each filter is labelled with the DEP reference so that
+the connection between plan and code is traceable.
+
+```{r}
+#| label: scope-and-save
+
+# --- DEP A.4: Flag territories (not removed, just marked) ---
+# The 50 states are included in primary analysis;
+# territories are retained in raw data but flagged.
+us_states <- c(
+  "Alabama","Alaska","Arizona","Arkansas","California","Colorado",
+  "Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho",
+  "Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine",
+  "Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
+  "Missouri","Montana","Nebraska","Nevada","New Hampshire",
+  "New Jersey","New Mexico","New York","North Carolina","North Dakota",
+  "Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+  "South Carolina","South Dakota","Tennessee","Texas","Utah",
+  "Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"
+)
+
+pop_table <- pop_table |>
+  mutate(is_state = pop_table[[1]] %in% us_states)  # TRUE = state
+
+# Confirm all 50 states present
+state_count <- sum(pop_table$is_state)
+if (state_count < 50) {
+  warning("Fewer than 50 states found (", state_count, "). Investigate.")
+}
+cat("States identified:", state_count, "\n")
+
+# --- DEP A.4: Log territory count for audit trail ---
+territory_count <- nrow(pop_table) - state_count
+cat("Territories/other rows flagged:", territory_count, "\n")
+
+# --- Save extracted data ---
+output_path <- paste0("data/raw/wikipedia/wikipedia_population_",
+                      timestamp, ".csv")
+write.csv(pop_table, output_path, row.names = FALSE)
+cat("\nExtraction complete:", timestamp, "\n")
+cat("Output saved to:", output_path, "\n")
+cat("Reproducibility anchor:", snapshot_path, "\n")
+```
+
+------------------------------------------------------------------------
+
+# Contingency Notes {.unnumbered}
+
+**DEP Reference:** A.5 Validation & Contingency
+
+If the spot-checks in Step 5 fail, do **not** proceed to data cleaning.
+Instead:
+
+1.  Open the saved HTML snapshot and visually confirm the table
+    structure
+2.  Check whether Wikipedia has updated the article (compare with a
+    recent Wayback Machine snapshot at `web.archive.org`)
+3.  If the article structure has changed, update `TARGET_INDEX` and
+    re-run from Step 3
+4.  If data values have changed (legitimate Wikipedia edits), note the
+    discrepancy in your extraction log and update the spot-check values
+    with the new Census Bureau-verified figures
+5.  If Wikipedia is unavailable entirely, use the Census Bureau's
+    historical tables at
+    `census.gov/data/tables/time-series/demo/popest/`
+
+------------------------------------------------------------------------
+
+# Session Info {.unnumbered}
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
