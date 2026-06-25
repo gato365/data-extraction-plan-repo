@@ -67,15 +67,25 @@ SEASONS   <- 2001:2025
 DELAY_SEC <- 5
 
 # --- DEP B.3: Storage paths ---
-RAW_DIR <- "data/raw/bball_ref/"
-dir.create(paste0(RAW_DIR, "html"), recursive = TRUE, showWarnings = FALSE)
-dir.create(paste0(RAW_DIR, "csv"),  recursive = TRUE, showWarnings = FALSE)
+# Each extraction run is stored in a date-stamped folder. If reviewers
+# rerun the extraction on the same date, this replaces that date's folder
+# so one source/date combination has one clean set of files.
+RUN_DATE <- format(Sys.Date(), "%Y-%m-%d")
+RAW_DIR <- file.path("data", "raw", "bball_ref", RUN_DATE)
+REPLACE_EXISTING_DATA <- TRUE
+
+if (dir.exists(RAW_DIR) && REPLACE_EXISTING_DATA) {
+  unlink(RAW_DIR, recursive = TRUE)
+}
+dir.create(file.path(RAW_DIR, "html"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(RAW_DIR, "csv"),  recursive = TRUE, showWarnings = FALSE)
 
 cat("Seasons to extract:", length(SEASONS), "\n")
 cat("Table types: per_game, advanced\n")
 cat("Total requests planned:", length(SEASONS) * 2, "\n")
 cat("Estimated time at", DELAY_SEC, "sec delay:",
     round(length(SEASONS) * 2 * DELAY_SEC / 60, 1), "minutes\n")
+cat("Run directory:", RAW_DIR, "\n")
 ```
 
 ---
@@ -112,7 +122,8 @@ scrape_season <- function(year, type = "per_game") {
     # Fetch and snapshot raw HTML (reproducibility anchor)
     page <- read_html(url)
     write_xml(page,
-              sprintf("%shtml/%s_%d.html", RAW_DIR, type, year))
+              file.path(RAW_DIR, "html",
+                        sprintf("%s_%d.html", type, year)))
 
     # --- DEP B.3 Known Parsing Challenge: table ID ---
     # Basketball Reference uses HTML id attributes to identify stat tables.
@@ -269,18 +280,16 @@ cat("Players retained for regression:",
 ```{r}
 #| label: save
 
-timestamp <- format(Sys.Date(), "%Y-%m-%d")
-
-per_game_path <- paste0(RAW_DIR, "csv/per_game_all_", timestamp, ".csv")
-advanced_path <- paste0(RAW_DIR, "csv/advanced_all_", timestamp, ".csv")
+per_game_path <- file.path(RAW_DIR, "csv", "per_game_all.csv")
+advanced_path <- file.path(RAW_DIR, "csv", "advanced_all.csv")
 
 write.csv(per_game_data, per_game_path, row.names = FALSE)
 write.csv(advanced_data, advanced_path, row.names = FALSE)
 
 cat("Saved per-game data to:", per_game_path, "\n")
 cat("Saved advanced data to:", advanced_path, "\n")
-cat("\nExtraction complete:", timestamp, "\n")
-cat("Raw HTML files in:", paste0(RAW_DIR, "html/"), "\n")
+cat("\nExtraction complete:", RUN_DATE, "\n")
+cat("Raw HTML files in:", file.path(RAW_DIR, "html"), "\n")
 ```
 
 ---

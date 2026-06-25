@@ -114,7 +114,18 @@ access_token <- get_spotify_access_token()
 cat("Authentication successful.\n")
 
 # --- DEP C.3: Storage paths ---
-dir.create("data/raw/spotify", recursive = TRUE, showWarnings = FALSE)
+# Each extraction run is stored in a date-stamped folder. If reviewers
+# rerun the extraction on the same date, this replaces that date's folder
+# so one source/date combination has one clean set of files.
+RUN_DATE <- format(Sys.Date(), "%Y-%m-%d")
+RUN_DIR <- file.path("data", "raw", "spotify", RUN_DATE)
+REPLACE_EXISTING_DATA <- TRUE
+
+if (dir.exists(RUN_DIR) && REPLACE_EXISTING_DATA) {
+  unlink(RUN_DIR, recursive = TRUE)
+}
+dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
+cat("Run directory:", RUN_DIR, "\n")
 ```
 
 ------------------------------------------------------------------------
@@ -374,10 +385,8 @@ extraction: `.rds` (R native, preserving data types) for analysis;
 ```{r}
 #| label: save
 
-timestamp <- format(Sys.Date(), "%Y-%m-%d")
-
-rds_path <- paste0("data/raw/spotify/spotify_all_", timestamp, ".rds")
-csv_path <- paste0("data/raw/spotify/spotify_all_", timestamp, ".csv")
+rds_path <- file.path(RUN_DIR, "spotify_all.rds")
+csv_path <- file.path(RUN_DIR, "spotify_all.csv")
 
 saveRDS(all_features, rds_path)
 write.csv(all_features, csv_path, row.names = FALSE)
@@ -389,7 +398,7 @@ cat("  Tracks:     ", nrow(all_features), "\n")
 cat("  Variables:  ", ncol(all_features), "\n")
 cat("  Genres:     ", length(unique(all_features$genre)), "\n")
 cat("  Artists:    ", length(unique(all_features$artist_name)), "\n")
-cat("  Date:       ", timestamp, "\n")
+cat("  Date:       ", RUN_DATE, "\n")
 ```
 
 ------------------------------------------------------------------------

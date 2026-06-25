@@ -2291,7 +2291,18 @@ vertical-align: -.125em;
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.3: Storage paths ---</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;data/raw/wikipedia&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Each extraction run is stored in a date-stamped folder. If reviewers</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># rerun the extraction on the same date, this replaces that date&#39;s folder</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># so one source/date combination has one clean set of files.</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>RUN_DATE <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>RUN_DIR <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;raw&quot;</span>, <span class="st">&quot;wikipedia&quot;</span>, RUN_DATE)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>REPLACE_EXISTING_DATA <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">dir.exists</span>(RUN_DIR) <span class="sc">&amp;&amp;</span> REPLACE_EXISTING_DATA) {</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlink</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Run directory:&quot;</span>, RUN_DIR, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -2300,18 +2311,14 @@ vertical-align: -.125em;
 <p><strong>DEP Reference:</strong> A.3 Access &amp; Technical Plan — <em>“A copy of the raw HTML page will be saved alongside the extracted CSV.”</em></p>
 <p>Wikipedia is a living document. Editors can change values, add columns, or restructure the article at any time. Saving the raw HTML at the moment of extraction creates a <strong>reproducibility anchor</strong>: anyone who later wants to verify the extracted data can compare it against the exact HTML source that was used.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Record the extraction date — used in all filenames for this run</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fetch the page (single HTTP GET request — no auth, no rate limit needed)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>raw_html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(WIKI_URL)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Fetch the page (single HTTP GET request — no auth, no rate limit needed)</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>raw_html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(WIKI_URL)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Save raw HTML snapshot immediately, before any parsing</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the reproducibility anchor described in DEP A.3.</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>snapshot_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/wikipedia/wikipedia_population_raw_&quot;</span>,</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>                        timestamp, <span class="st">&quot;.html&quot;</span>)</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">write_xml</span>(raw_html, snapshot_path)</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;HTML snapshot saved to:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Save raw HTML snapshot immediately, before any parsing</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the reproducibility anchor described in DEP A.3.</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>snapshot_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;wikipedia_population_raw.html&quot;</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">write_xml</span>(raw_html, snapshot_path)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;HTML snapshot saved to:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -2436,12 +2443,11 @@ vertical-align: -.125em;
 <span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Territories/other rows flagged:&quot;</span>, territory_count, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Save extracted data ---</span></span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>output_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/wikipedia/wikipedia_population_&quot;</span>,</span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>                      timestamp, <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(pop_table, output_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction complete:&quot;</span>, timestamp, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Output saved to:&quot;</span>, output_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reproducibility anchor:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>output_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;wikipedia_population.csv&quot;</span>)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(pop_table, output_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction complete:&quot;</span>, RUN_DATE, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Output saved to:&quot;</span>, output_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reproducibility anchor:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -2989,227 +2995,233 @@ vertical-align: -.125em;
 <span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.3: Storage paths ---</span></span>
-<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;data/raw/wikipedia&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 2 — Fetch the Page and Save the Reproducibility Anchor</span></span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a><span class="co"># Each extraction run is stored in a date-stamped folder. If reviewers</span></span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a><span class="co"># rerun the extraction on the same date, this replaces that date&#39;s folder</span></span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a><span class="co"># so one source/date combination has one clean set of files.</span></span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>RUN_DATE <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a>RUN_DIR <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;raw&quot;</span>, <span class="st">&quot;wikipedia&quot;</span>, RUN_DATE)</span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a>REPLACE_EXISTING_DATA <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
 <span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;A copy of the raw</span>
-<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>HTML page will be saved alongside the extracted CSV.&quot;*</span>
-<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>Wikipedia is a living document. Editors can change values, add columns,</span>
-<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>or restructure the article at any time. Saving the raw HTML at the</span>
-<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a>moment of extraction creates a **reproducibility anchor**: anyone who</span>
-<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>later wants to verify the extracted data can compare it against the</span>
-<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>exact HTML source that was used.</span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">dir.exists</span>(RUN_DIR) <span class="sc">&amp;&amp;</span> REPLACE_EXISTING_DATA) {</span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlink</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Run directory:&quot;</span>, RUN_DIR, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
 <span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fetch-and-snapshot</span></span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 2 — Fetch the Page and Save the Reproducibility Anchor</span></span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;A copy of the raw</span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>HTML page will be saved alongside the extracted CSV.&quot;*</span>
 <span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a><span class="co"># Record the extraction date — used in all filenames for this run</span></span>
-<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
-<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a><span class="co"># Fetch the page (single HTTP GET request — no auth, no rate limit needed)</span></span>
-<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>raw_html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(WIKI_URL)</span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>Wikipedia is a living document. Editors can change values, add columns,</span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>or restructure the article at any time. Saving the raw HTML at the</span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>moment of extraction creates a **reproducibility anchor**: anyone who</span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a>later wants to verify the extracted data can compare it against the</span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>exact HTML source that was used.</span>
 <span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a><span class="co"># Save raw HTML snapshot immediately, before any parsing</span></span>
-<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the reproducibility anchor described in DEP A.3.</span></span>
-<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a>snapshot_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/wikipedia/wikipedia_population_raw_&quot;</span>,</span>
-<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a>                        timestamp, <span class="st">&quot;.html&quot;</span>)</span>
-<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a><span class="fu">write_xml</span>(raw_html, snapshot_path)</span>
-<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;HTML snapshot saved to:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fetch-and-snapshot</span></span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a><span class="co"># Fetch the page (single HTTP GET request — no auth, no rate limit needed)</span></span>
+<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a>raw_html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(WIKI_URL)</span>
 <span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 3 — Extract the Target Table</span></span>
-<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;Target table</span>
-<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a>identified by index position (third table as of January 2025). Known</span>
-<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a>fragility: if the article is reorganized, the index may silently capture</span>
-<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>the wrong table.&quot;*</span>
+<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a><span class="co"># Save raw HTML snapshot immediately, before any parsing</span></span>
+<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the reproducibility anchor described in DEP A.3.</span></span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>snapshot_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;wikipedia_population_raw.html&quot;</span>)</span>
+<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a><span class="fu">write_xml</span>(raw_html, snapshot_path)</span>
+<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;HTML snapshot saved to:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
 <span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a>The DEP documents this fragility explicitly. The mitigation is mandatory</span>
-<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>visual inspection in Step 4 before any downstream processing.</span>
-<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract-table</span></span>
-<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a><span class="co"># Parse all tables on the page</span></span>
-<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a>all_tables <span class="ot">&lt;-</span> raw_html <span class="sc">|&gt;</span> <span class="fu">html_table</span>(<span class="at">fill =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total tables found on page:&quot;</span>, <span class="fu">length</span>(all_tables), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract the target table by index</span></span>
-<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a><span class="co"># DEP </span><span class="al">NOTE</span><span class="co">: This index was verified as of January 2025.</span></span>
-<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a><span class="co">#           If the article is restructured, update this index and</span></span>
-<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a><span class="co">#           re-verify with the spot-checks in Step 5.</span></span>
-<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a>TARGET_INDEX <span class="ot">&lt;-</span> <span class="dv">4</span></span>
-<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a>pop_table <span class="ot">&lt;-</span> all_tables[[TARGET_INDEX]]</span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 3 — Extract the Target Table</span></span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;Target table</span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>identified by index position (third table as of January 2025). Known</span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a>fragility: if the article is reorganized, the index may silently capture</span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a>the wrong table.&quot;*</span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>The DEP documents this fragility explicitly. The mitigation is mandatory</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a>visual inspection in Step 4 before any downstream processing.</span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract-table</span></span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a><span class="co"># Parse all tables on the page</span></span>
+<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a>all_tables <span class="ot">&lt;-</span> raw_html <span class="sc">|&gt;</span> <span class="fu">html_table</span>(<span class="at">fill =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total tables found on page:&quot;</span>, <span class="fu">length</span>(all_tables), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Extracted table dimensions:&quot;</span>,</span>
-<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(pop_table), <span class="st">&quot;rows x&quot;</span>, <span class="fu">ncol</span>(pop_table), <span class="st">&quot;cols</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 4 — Mandatory Visual Inspection</span></span>
-<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;The extraction script</span>
-<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a>must print the first 3 rows before downstream processing.&quot;*</span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract the target table by index</span></span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a><span class="co"># DEP </span><span class="al">NOTE</span><span class="co">: This index was verified as of January 2025.</span></span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a><span class="co">#           If the article is restructured, update this index and</span></span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a><span class="co">#           re-verify with the spot-checks in Step 5.</span></span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>TARGET_INDEX <span class="ot">&lt;-</span> <span class="dv">4</span></span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>pop_table <span class="ot">&lt;-</span> all_tables[[TARGET_INDEX]]</span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Extracted table dimensions:&quot;</span>,</span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(pop_table), <span class="st">&quot;rows x&quot;</span>, <span class="fu">ncol</span>(pop_table), <span class="st">&quot;cols</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a>This step cannot be skipped or suppressed. Its purpose is to verify that</span>
-<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a>the correct table was captured before any transformations make it harder</span>
-<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>to detect the wrong-table error.</span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 4 — Mandatory Visual Inspection</span></span>
 <span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: inspect</span></span>
-<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the first 3 rows — confirm this looks like a state-population table</span></span>
-<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected: row names are state names, column names are census years</span></span>
-<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(pop_table, <span class="dv">3</span>))</span>
-<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a><span class="co"># Also check the column names to confirm census years are present</span></span>
-<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Column names (first 10):</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">names</span>(pop_table)[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>])</span>
-<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.3 Access &amp; Technical Plan — *&quot;The extraction script</span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a>must print the first 3 rows before downstream processing.&quot;*</span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a>This step cannot be skipped or suppressed. Its purpose is to verify that</span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a>the correct table was captured before any transformations make it harder</span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a>to detect the wrong-table error.</span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: inspect</span></span>
+<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the first 3 rows — confirm this looks like a state-population table</span></span>
+<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected: row names are state names, column names are census years</span></span>
+<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(pop_table, <span class="dv">3</span>))</span>
 <span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 5 — Spot-Check Validation</span></span>
-<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.5 Validation &amp; Contingency — *&quot;Pre-specified</span>
-<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a>spot-check values (from Census Bureau publications).&quot;*</span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="co"># Also check the column names to confirm census years are present</span></span>
+<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Column names (first 10):</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">names</span>(pop_table)[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>])</span>
+<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a>These three values were identified in the DEP **before** extraction, not</span>
-<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a>after looking at the data. This is the extraction equivalent of</span>
-<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a>preregistration: defining the validation criteria in advance removes the</span>
-<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a>possibility of post-hoc rationalization.</span>
-<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>::: callout-note</span>
-<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why pre-specification matters</span></span>
-<span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>A validation checkpoint defined *after* looking at the data is</span>
-<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>indistinguishable from confirming what you already know. Pre-specified</span>
-<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>checkpoints constrain what counts as a passing extraction.</span>
-<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: validate</span></span>
-<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Pre-specified spot-check values (DEP A.5) ---</span></span>
-<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a><span class="co"># Sources: 2020 Decennial Census (CA, WY)</span></span>
-<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a>spot_checks <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a>  <span class="at">state    =</span> <span class="fu">c</span>(<span class="st">&quot;California&quot;</span>, <span class="st">&quot;Wyoming&quot;</span>),</span>
-<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a>  <span class="at">expected =</span> <span class="fu">c</span>(<span class="dv">39538223</span>L, <span class="dv">576851</span>L)</span>
-<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 5 — Spot-Check Validation</span></span>
+<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.5 Validation &amp; Contingency — *&quot;Pre-specified</span>
+<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>spot-check values (from Census Bureau publications).&quot;*</span>
+<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a>These three values were identified in the DEP **before** extraction, not</span>
+<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>after looking at the data. This is the extraction equivalent of</span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>preregistration: defining the validation criteria in advance removes the</span>
+<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>possibility of post-hoc rationalization.</span>
+<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>::: callout-note</span>
+<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why pre-specification matters</span></span>
+<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>A validation checkpoint defined *after* looking at the data is</span>
+<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a>indistinguishable from confirming what you already know. Pre-specified</span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a>checkpoints constrain what counts as a passing extraction.</span>
+<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: validate</span></span>
 <span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a><span class="co"># Value spot-checks</span></span>
-<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a><span class="co"># These will throw an informative error if the extracted values don&#39;t match.</span></span>
-<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust the column references after cleaning column names in your workflow.</span></span>
-<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a>pop_table <span class="sc">|&gt;</span></span>
-<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(.data[[<span class="fu">names</span>(pop_table)[<span class="dv">1</span>]]] <span class="sc">%in%</span> spot_checks<span class="sc">$</span>state) <span class="sc">|&gt;</span></span>
-<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">state =</span> <span class="dv">1</span>, <span class="at">value =</span> <span class="st">`</span><span class="at">2020</span><span class="st">`</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">as.integer</span>(<span class="fu">str_remove_all</span>(value, <span class="st">&quot;,&quot;</span>))) <span class="sc">|&gt;</span>  <span class="co"># strip commas before coercion</span></span>
-<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(spot_checks, <span class="at">by =</span> <span class="st">&quot;state&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">match =</span> value <span class="sc">==</span> expected) <span class="sc">|&gt;</span></span>
-<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>  {</span>
-<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a>    \(df) {</span>
-<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">all</span>(df<span class="sc">$</span>match)) {</span>
-<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a>        mismatches <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a>          <span class="fu">filter</span>(<span class="sc">!</span>match)</span>
-<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a>        <span class="fu">stop</span>(<span class="st">&quot;Spot-check failed for: &quot;</span>,</span>
-<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>             <span class="fu">paste</span>(mismatches<span class="sc">$</span>state, <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>),</span>
-<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot; — check table index or source change&quot;</span>)</span>
-<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a>      }</span>
-<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cat</span>(<span class="st">&quot;All spot-checks passed.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>      df</span>
-<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>  }()</span>
-<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 6 — Apply Scope Decisions and Save</span></span>
-<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.4 Scope &amp; Sampling</span>
-<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a>The scope decisions documented in the DEP are applied here as explicit</span>
-<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a>filtering steps. Each filter is labelled with the DEP reference so that</span>
-<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a>the connection between plan and code is traceable.</span>
-<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scope-and-save</span></span>
-<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.4: Flag territories (not removed, just marked) ---</span></span>
-<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a><span class="co"># The 50 states are included in primary analysis;</span></span>
-<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a><span class="co"># territories are retained in raw data but flagged.</span></span>
-<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a>us_states <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Alabama&quot;</span>,<span class="st">&quot;Alaska&quot;</span>,<span class="st">&quot;Arizona&quot;</span>,<span class="st">&quot;Arkansas&quot;</span>,<span class="st">&quot;California&quot;</span>,<span class="st">&quot;Colorado&quot;</span>,</span>
-<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Connecticut&quot;</span>,<span class="st">&quot;Delaware&quot;</span>,<span class="st">&quot;Florida&quot;</span>,<span class="st">&quot;Georgia&quot;</span>,<span class="st">&quot;Hawaii&quot;</span>,<span class="st">&quot;Idaho&quot;</span>,</span>
-<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Illinois&quot;</span>,<span class="st">&quot;Indiana&quot;</span>,<span class="st">&quot;Iowa&quot;</span>,<span class="st">&quot;Kansas&quot;</span>,<span class="st">&quot;Kentucky&quot;</span>,<span class="st">&quot;Louisiana&quot;</span>,<span class="st">&quot;Maine&quot;</span>,</span>
-<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Maryland&quot;</span>,<span class="st">&quot;Massachusetts&quot;</span>,<span class="st">&quot;Michigan&quot;</span>,<span class="st">&quot;Minnesota&quot;</span>,<span class="st">&quot;Mississippi&quot;</span>,</span>
-<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Missouri&quot;</span>,<span class="st">&quot;Montana&quot;</span>,<span class="st">&quot;Nebraska&quot;</span>,<span class="st">&quot;Nevada&quot;</span>,<span class="st">&quot;New Hampshire&quot;</span>,</span>
-<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;New Jersey&quot;</span>,<span class="st">&quot;New Mexico&quot;</span>,<span class="st">&quot;New York&quot;</span>,<span class="st">&quot;North Carolina&quot;</span>,<span class="st">&quot;North Dakota&quot;</span>,</span>
-<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Ohio&quot;</span>,<span class="st">&quot;Oklahoma&quot;</span>,<span class="st">&quot;Oregon&quot;</span>,<span class="st">&quot;Pennsylvania&quot;</span>,<span class="st">&quot;Rhode Island&quot;</span>,</span>
-<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;South Carolina&quot;</span>,<span class="st">&quot;South Dakota&quot;</span>,<span class="st">&quot;Tennessee&quot;</span>,<span class="st">&quot;Texas&quot;</span>,<span class="st">&quot;Utah&quot;</span>,</span>
-<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Vermont&quot;</span>,<span class="st">&quot;Virginia&quot;</span>,<span class="st">&quot;Washington&quot;</span>,<span class="st">&quot;West Virginia&quot;</span>,<span class="st">&quot;Wisconsin&quot;</span>,<span class="st">&quot;Wyoming&quot;</span></span>
-<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>pop_table <span class="ot">&lt;-</span> pop_table <span class="sc">|&gt;</span></span>
-<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">is_state =</span> pop_table[[<span class="dv">1</span>]] <span class="sc">%in%</span> us_states)  <span class="co"># TRUE = state</span></span>
-<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm all 50 states present</span></span>
-<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a>state_count <span class="ot">&lt;-</span> <span class="fu">sum</span>(pop_table<span class="sc">$</span>is_state)</span>
-<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (state_count <span class="sc">&lt;</span> <span class="dv">50</span>) {</span>
-<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(<span class="st">&quot;Fewer than 50 states found (&quot;</span>, state_count, <span class="st">&quot;). Investigate.&quot;</span>)</span>
-<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;States identified:&quot;</span>, state_count, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Pre-specified spot-check values (DEP A.5) ---</span></span>
+<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a><span class="co"># Sources: 2020 Decennial Census (CA, WY)</span></span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a>spot_checks <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a>  <span class="at">state    =</span> <span class="fu">c</span>(<span class="st">&quot;California&quot;</span>, <span class="st">&quot;Wyoming&quot;</span>),</span>
+<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>  <span class="at">expected =</span> <span class="fu">c</span>(<span class="dv">39538223</span>L, <span class="dv">576851</span>L)</span>
+<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a><span class="co"># Value spot-checks</span></span>
+<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a><span class="co"># These will throw an informative error if the extracted values don&#39;t match.</span></span>
+<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust the column references after cleaning column names in your workflow.</span></span>
+<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a>pop_table <span class="sc">|&gt;</span></span>
+<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(.data[[<span class="fu">names</span>(pop_table)[<span class="dv">1</span>]]] <span class="sc">%in%</span> spot_checks<span class="sc">$</span>state) <span class="sc">|&gt;</span></span>
+<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">state =</span> <span class="dv">1</span>, <span class="at">value =</span> <span class="st">`</span><span class="at">2020</span><span class="st">`</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">as.integer</span>(<span class="fu">str_remove_all</span>(value, <span class="st">&quot;,&quot;</span>))) <span class="sc">|&gt;</span>  <span class="co"># strip commas before coercion</span></span>
+<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(spot_checks, <span class="at">by =</span> <span class="st">&quot;state&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">match =</span> value <span class="sc">==</span> expected) <span class="sc">|&gt;</span></span>
+<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a>    \(df) {</span>
+<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">all</span>(df<span class="sc">$</span>match)) {</span>
+<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>        mismatches <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
+<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a>          <span class="fu">filter</span>(<span class="sc">!</span>match)</span>
+<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>        <span class="fu">stop</span>(<span class="st">&quot;Spot-check failed for: &quot;</span>,</span>
+<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a>             <span class="fu">paste</span>(mismatches<span class="sc">$</span>state, <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>),</span>
+<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot; — check table index or source change&quot;</span>)</span>
+<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cat</span>(<span class="st">&quot;All spot-checks passed.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a>      df</span>
+<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>  }()</span>
+<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 6 — Apply Scope Decisions and Save</span></span>
+<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-231"><a href="#cb8-231" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.4 Scope &amp; Sampling</span>
+<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a>The scope decisions documented in the DEP are applied here as explicit</span>
+<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a>filtering steps. Each filter is labelled with the DEP reference so that</span>
+<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a>the connection between plan and code is traceable.</span>
+<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scope-and-save</span></span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.4: Flag territories (not removed, just marked) ---</span></span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a><span class="co"># The 50 states are included in primary analysis;</span></span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a><span class="co"># territories are retained in raw data but flagged.</span></span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>us_states <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Alabama&quot;</span>,<span class="st">&quot;Alaska&quot;</span>,<span class="st">&quot;Arizona&quot;</span>,<span class="st">&quot;Arkansas&quot;</span>,<span class="st">&quot;California&quot;</span>,<span class="st">&quot;Colorado&quot;</span>,</span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Connecticut&quot;</span>,<span class="st">&quot;Delaware&quot;</span>,<span class="st">&quot;Florida&quot;</span>,<span class="st">&quot;Georgia&quot;</span>,<span class="st">&quot;Hawaii&quot;</span>,<span class="st">&quot;Idaho&quot;</span>,</span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Illinois&quot;</span>,<span class="st">&quot;Indiana&quot;</span>,<span class="st">&quot;Iowa&quot;</span>,<span class="st">&quot;Kansas&quot;</span>,<span class="st">&quot;Kentucky&quot;</span>,<span class="st">&quot;Louisiana&quot;</span>,<span class="st">&quot;Maine&quot;</span>,</span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Maryland&quot;</span>,<span class="st">&quot;Massachusetts&quot;</span>,<span class="st">&quot;Michigan&quot;</span>,<span class="st">&quot;Minnesota&quot;</span>,<span class="st">&quot;Mississippi&quot;</span>,</span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Missouri&quot;</span>,<span class="st">&quot;Montana&quot;</span>,<span class="st">&quot;Nebraska&quot;</span>,<span class="st">&quot;Nevada&quot;</span>,<span class="st">&quot;New Hampshire&quot;</span>,</span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;New Jersey&quot;</span>,<span class="st">&quot;New Mexico&quot;</span>,<span class="st">&quot;New York&quot;</span>,<span class="st">&quot;North Carolina&quot;</span>,<span class="st">&quot;North Dakota&quot;</span>,</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Ohio&quot;</span>,<span class="st">&quot;Oklahoma&quot;</span>,<span class="st">&quot;Oregon&quot;</span>,<span class="st">&quot;Pennsylvania&quot;</span>,<span class="st">&quot;Rhode Island&quot;</span>,</span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;South Carolina&quot;</span>,<span class="st">&quot;South Dakota&quot;</span>,<span class="st">&quot;Tennessee&quot;</span>,<span class="st">&quot;Texas&quot;</span>,<span class="st">&quot;Utah&quot;</span>,</span>
+<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Vermont&quot;</span>,<span class="st">&quot;Virginia&quot;</span>,<span class="st">&quot;Washington&quot;</span>,<span class="st">&quot;West Virginia&quot;</span>,<span class="st">&quot;Wisconsin&quot;</span>,<span class="st">&quot;Wyoming&quot;</span></span>
+<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>pop_table <span class="ot">&lt;-</span> pop_table <span class="sc">|&gt;</span></span>
+<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">is_state =</span> pop_table[[<span class="dv">1</span>]] <span class="sc">%in%</span> us_states)  <span class="co"># TRUE = state</span></span>
 <span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.4: Log territory count for audit trail ---</span></span>
-<span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a>territory_count <span class="ot">&lt;-</span> <span class="fu">nrow</span>(pop_table) <span class="sc">-</span> state_count</span>
-<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Territories/other rows flagged:&quot;</span>, territory_count, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Save extracted data ---</span></span>
-<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a>output_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/wikipedia/wikipedia_population_&quot;</span>,</span>
-<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a>                      timestamp, <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(pop_table, output_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-268"><a href="#cb8-268" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction complete:&quot;</span>, timestamp, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-269"><a href="#cb8-269" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Output saved to:&quot;</span>, output_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-270"><a href="#cb8-270" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reproducibility anchor:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-271"><a href="#cb8-271" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-272"><a href="#cb8-272" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-273"><a href="#cb8-273" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-274"><a href="#cb8-274" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-275"><a href="#cb8-275" aria-hidden="true" tabindex="-1"></a><span class="fu"># Contingency Notes {.unnumbered}</span></span>
-<span id="cb8-276"><a href="#cb8-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-277"><a href="#cb8-277" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.5 Validation &amp; Contingency</span>
+<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm all 50 states present</span></span>
+<span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a>state_count <span class="ot">&lt;-</span> <span class="fu">sum</span>(pop_table<span class="sc">$</span>is_state)</span>
+<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (state_count <span class="sc">&lt;</span> <span class="dv">50</span>) {</span>
+<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(<span class="st">&quot;Fewer than 50 states found (&quot;</span>, state_count, <span class="st">&quot;). Investigate.&quot;</span>)</span>
+<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;States identified:&quot;</span>, state_count, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP A.4: Log territory count for audit trail ---</span></span>
+<span id="cb8-268"><a href="#cb8-268" aria-hidden="true" tabindex="-1"></a>territory_count <span class="ot">&lt;-</span> <span class="fu">nrow</span>(pop_table) <span class="sc">-</span> state_count</span>
+<span id="cb8-269"><a href="#cb8-269" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Territories/other rows flagged:&quot;</span>, territory_count, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-270"><a href="#cb8-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-271"><a href="#cb8-271" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Save extracted data ---</span></span>
+<span id="cb8-272"><a href="#cb8-272" aria-hidden="true" tabindex="-1"></a>output_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;wikipedia_population.csv&quot;</span>)</span>
+<span id="cb8-273"><a href="#cb8-273" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(pop_table, output_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-274"><a href="#cb8-274" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction complete:&quot;</span>, RUN_DATE, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-275"><a href="#cb8-275" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Output saved to:&quot;</span>, output_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-276"><a href="#cb8-276" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reproducibility anchor:&quot;</span>, snapshot_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-277"><a href="#cb8-277" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb8-278"><a href="#cb8-278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-279"><a href="#cb8-279" aria-hidden="true" tabindex="-1"></a>If the spot-checks in Step 5 fail, do **not** proceed to data cleaning.</span>
-<span id="cb8-280"><a href="#cb8-280" aria-hidden="true" tabindex="-1"></a>Instead:</span>
-<span id="cb8-281"><a href="#cb8-281" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-282"><a href="#cb8-282" aria-hidden="true" tabindex="-1"></a><span class="ss">1.  </span>Open the saved HTML snapshot and visually confirm the table</span>
-<span id="cb8-283"><a href="#cb8-283" aria-hidden="true" tabindex="-1"></a>    structure</span>
-<span id="cb8-284"><a href="#cb8-284" aria-hidden="true" tabindex="-1"></a><span class="ss">2.  </span>Check whether Wikipedia has updated the article (compare with a</span>
-<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a>    recent Wayback Machine snapshot at <span class="in">`web.archive.org`</span>)</span>
-<span id="cb8-286"><a href="#cb8-286" aria-hidden="true" tabindex="-1"></a><span class="ss">3.  </span>If the article structure has changed, update <span class="in">`TARGET_INDEX`</span> and</span>
-<span id="cb8-287"><a href="#cb8-287" aria-hidden="true" tabindex="-1"></a>    re-run from Step 3</span>
-<span id="cb8-288"><a href="#cb8-288" aria-hidden="true" tabindex="-1"></a><span class="ss">4.  </span>If data values have changed (legitimate Wikipedia edits), note the</span>
-<span id="cb8-289"><a href="#cb8-289" aria-hidden="true" tabindex="-1"></a>    discrepancy in your extraction log and update the spot-check values</span>
-<span id="cb8-290"><a href="#cb8-290" aria-hidden="true" tabindex="-1"></a>    with the new Census Bureau-verified figures</span>
-<span id="cb8-291"><a href="#cb8-291" aria-hidden="true" tabindex="-1"></a><span class="ss">5.  </span>If Wikipedia is unavailable entirely, use the Census Bureau&#39;s</span>
-<span id="cb8-292"><a href="#cb8-292" aria-hidden="true" tabindex="-1"></a>    historical tables at</span>
-<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a>    <span class="in">`census.gov/data/tables/time-series/demo/popest/`</span></span>
-<span id="cb8-294"><a href="#cb8-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-295"><a href="#cb8-295" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb8-296"><a href="#cb8-296" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-297"><a href="#cb8-297" aria-hidden="true" tabindex="-1"></a><span class="fu"># Session Info {.unnumbered}</span></span>
-<span id="cb8-298"><a href="#cb8-298" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-301"><a href="#cb8-301" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-302"><a href="#cb8-302" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: session-info</span></span>
-<span id="cb8-303"><a href="#cb8-303" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
-<span id="cb8-304"><a href="#cb8-304" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-279"><a href="#cb8-279" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-280"><a href="#cb8-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-281"><a href="#cb8-281" aria-hidden="true" tabindex="-1"></a><span class="fu"># Contingency Notes {.unnumbered}</span></span>
+<span id="cb8-282"><a href="#cb8-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-283"><a href="#cb8-283" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** A.5 Validation &amp; Contingency</span>
+<span id="cb8-284"><a href="#cb8-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a>If the spot-checks in Step 5 fail, do **not** proceed to data cleaning.</span>
+<span id="cb8-286"><a href="#cb8-286" aria-hidden="true" tabindex="-1"></a>Instead:</span>
+<span id="cb8-287"><a href="#cb8-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-288"><a href="#cb8-288" aria-hidden="true" tabindex="-1"></a><span class="ss">1.  </span>Open the saved HTML snapshot and visually confirm the table</span>
+<span id="cb8-289"><a href="#cb8-289" aria-hidden="true" tabindex="-1"></a>    structure</span>
+<span id="cb8-290"><a href="#cb8-290" aria-hidden="true" tabindex="-1"></a><span class="ss">2.  </span>Check whether Wikipedia has updated the article (compare with a</span>
+<span id="cb8-291"><a href="#cb8-291" aria-hidden="true" tabindex="-1"></a>    recent Wayback Machine snapshot at <span class="in">`web.archive.org`</span>)</span>
+<span id="cb8-292"><a href="#cb8-292" aria-hidden="true" tabindex="-1"></a><span class="ss">3.  </span>If the article structure has changed, update <span class="in">`TARGET_INDEX`</span> and</span>
+<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a>    re-run from Step 3</span>
+<span id="cb8-294"><a href="#cb8-294" aria-hidden="true" tabindex="-1"></a><span class="ss">4.  </span>If data values have changed (legitimate Wikipedia edits), note the</span>
+<span id="cb8-295"><a href="#cb8-295" aria-hidden="true" tabindex="-1"></a>    discrepancy in your extraction log and update the spot-check values</span>
+<span id="cb8-296"><a href="#cb8-296" aria-hidden="true" tabindex="-1"></a>    with the new Census Bureau-verified figures</span>
+<span id="cb8-297"><a href="#cb8-297" aria-hidden="true" tabindex="-1"></a><span class="ss">5.  </span>If Wikipedia is unavailable entirely, use the Census Bureau&#39;s</span>
+<span id="cb8-298"><a href="#cb8-298" aria-hidden="true" tabindex="-1"></a>    historical tables at</span>
+<span id="cb8-299"><a href="#cb8-299" aria-hidden="true" tabindex="-1"></a>    <span class="in">`census.gov/data/tables/time-series/demo/popest/`</span></span>
+<span id="cb8-300"><a href="#cb8-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-301"><a href="#cb8-301" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb8-302"><a href="#cb8-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-303"><a href="#cb8-303" aria-hidden="true" tabindex="-1"></a><span class="fu"># Session Info {.unnumbered}</span></span>
+<span id="cb8-304"><a href="#cb8-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-307"><a href="#cb8-307" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-308"><a href="#cb8-308" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: session-info</span></span>
+<span id="cb8-309"><a href="#cb8-309" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb8-310"><a href="#cb8-310" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

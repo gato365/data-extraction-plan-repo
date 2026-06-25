@@ -67,7 +67,18 @@ WIKI_URL <- paste0(
 )
 
 # --- DEP A.3: Storage paths ---
-dir.create("data/raw/wikipedia", recursive = TRUE, showWarnings = FALSE)
+# Each extraction run is stored in a date-stamped folder. If reviewers
+# rerun the extraction on the same date, this replaces that date's folder
+# so one source/date combination has one clean set of files.
+RUN_DATE <- format(Sys.Date(), "%Y-%m-%d")
+RUN_DIR <- file.path("data", "raw", "wikipedia", RUN_DATE)
+REPLACE_EXISTING_DATA <- TRUE
+
+if (dir.exists(RUN_DIR) && REPLACE_EXISTING_DATA) {
+  unlink(RUN_DIR, recursive = TRUE)
+}
+dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
+cat("Run directory:", RUN_DIR, "\n")
 ```
 
 ------------------------------------------------------------------------
@@ -86,16 +97,12 @@ exact HTML source that was used.
 ```{r}
 #| label: fetch-and-snapshot
 
-# Record the extraction date — used in all filenames for this run
-timestamp <- format(Sys.Date(), "%Y-%m-%d")
-
 # Fetch the page (single HTTP GET request — no auth, no rate limit needed)
 raw_html <- read_html(WIKI_URL)
 
 # Save raw HTML snapshot immediately, before any parsing
 # This is the reproducibility anchor described in DEP A.3.
-snapshot_path <- paste0("data/raw/wikipedia/wikipedia_population_raw_",
-                        timestamp, ".html")
+snapshot_path <- file.path(RUN_DIR, "wikipedia_population_raw.html")
 write_xml(raw_html, snapshot_path)
 cat("HTML snapshot saved to:", snapshot_path, "\n")
 ```
@@ -250,10 +257,9 @@ territory_count <- nrow(pop_table) - state_count
 cat("Territories/other rows flagged:", territory_count, "\n")
 
 # --- Save extracted data ---
-output_path <- paste0("data/raw/wikipedia/wikipedia_population_",
-                      timestamp, ".csv")
+output_path <- file.path(RUN_DIR, "wikipedia_population.csv")
 write.csv(pop_table, output_path, row.names = FALSE)
-cat("\nExtraction complete:", timestamp, "\n")
+cat("\nExtraction complete:", RUN_DATE, "\n")
 cat("Output saved to:", output_path, "\n")
 cat("Reproducibility anchor:", snapshot_path, "\n")
 ```

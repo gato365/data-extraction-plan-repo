@@ -2335,7 +2335,18 @@ SPOTIFY_CLIENT_SECRET=your_client_secret_here</code></pre>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Authentication successful.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.3: Storage paths ---</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;data/raw/spotify&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Each extraction run is stored in a date-stamped folder. If reviewers</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co"># rerun the extraction on the same date, this replaces that date&#39;s folder</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co"># so one source/date combination has one clean set of files.</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>RUN_DATE <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>RUN_DIR <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;raw&quot;</span>, <span class="st">&quot;spotify&quot;</span>, RUN_DATE)</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>REPLACE_EXISTING_DATA <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">dir.exists</span>(RUN_DIR) <span class="sc">&amp;&amp;</span> REPLACE_EXISTING_DATA) {</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlink</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Run directory:&quot;</span>, RUN_DIR, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -2555,22 +2566,20 @@ SPOTIFY_CLIENT_SECRET=your_client_secret_here</code></pre>
 <h1 data-number="7"><span class="header-section-number">7</span> Step 7 — Save in Two Formats</h1>
 <p><strong>DEP Reference:</strong> C.3 Access &amp; Technical Plan — <em>“Two formats per extraction: <code>.rds</code> (R native, preserving data types) for analysis; <code>.csv</code> for portability.”</em></p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>rds_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/spotify/spotify_all_&quot;</span>, timestamp, <span class="st">&quot;.rds&quot;</span>)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>csv_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/spotify/spotify_all_&quot;</span>, timestamp, <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(all_features, rds_path)</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(all_features, csv_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .rds to:&quot;</span>, rds_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .csv to:&quot;</span>, csv_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction summary:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Tracks:     &quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Variables:  &quot;</span>, <span class="fu">ncol</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Genres:     &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>genre)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Artists:    &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>artist_name)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Date:       &quot;</span>, timestamp, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rds_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;spotify_all.rds&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>csv_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;spotify_all.csv&quot;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(all_features, rds_path)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(all_features, csv_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .rds to:&quot;</span>, rds_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .csv to:&quot;</span>, csv_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction summary:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Tracks:     &quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Variables:  &quot;</span>, <span class="fu">ncol</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Genres:     &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>genre)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Artists:    &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>artist_name)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Date:       &quot;</span>, RUN_DATE, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -3207,335 +3216,344 @@ SPOTIFY_CLIENT_SECRET=your_client_secret_here</code></pre>
 <span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Authentication successful.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.3: Storage paths ---</span></span>
-<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;data/raw/spotify&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 2 — Define the Artist List (Sampling Strategy)</span></span>
+<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a><span class="co"># Each extraction run is stored in a date-stamped folder. If reviewers</span></span>
+<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a><span class="co"># rerun the extraction on the same date, this replaces that date&#39;s folder</span></span>
+<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a><span class="co"># so one source/date combination has one clean set of files.</span></span>
+<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a>RUN_DATE <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a>RUN_DIR <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;raw&quot;</span>, <span class="st">&quot;spotify&quot;</span>, RUN_DATE)</span>
+<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a>REPLACE_EXISTING_DATA <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
 <span id="cb12-125"><a href="#cb12-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling — *&quot;Stratified sampling:</span>
-<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a>complete discographies for the top 10 artists by Spotify monthly</span>
-<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>listeners in each of 6 genres.&quot;*</span>
-<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>Artist IDs are resolved and recorded in the DEP before extraction</span>
-<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a>begins, not looked up dynamically during the run. This makes the sample</span>
-<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>definition auditable and stable.</span>
-<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a>::: callout-important</span>
-<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a><span class="fu">## Documented sampling bias (DEP C.4)</span></span>
+<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">dir.exists</span>(RUN_DIR) <span class="sc">&amp;&amp;</span> REPLACE_EXISTING_DATA) {</span>
+<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlink</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(RUN_DIR, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Run directory:&quot;</span>, RUN_DIR, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 2 — Define the Artist List (Sampling Strategy)</span></span>
 <span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a>Spotify&#39;s Browse and Search endpoints return results ranked by</span>
-<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a>popularity. There is no mechanism for random artist retrieval via the</span>
-<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a>API. The sample is therefore biased toward the high end of the</span>
-<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a>popularity distribution.</span>
-<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a>This is a property of the data **source**, not solely a choice of the</span>
-<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>analyst. The DEP records this distinction explicitly so that readers of</span>
-<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a>the eventual analysis understand the provenance of the range</span>
-<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>restriction.</span>
-<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling — *&quot;Stratified sampling:</span>
+<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a>complete discographies for the top 10 artists by Spotify monthly</span>
+<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a>listeners in each of 6 genres.&quot;*</span>
+<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a>Artist IDs are resolved and recorded in the DEP before extraction</span>
+<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a>begins, not looked up dynamically during the run. This makes the sample</span>
+<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>definition auditable and stable.</span>
+<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>::: callout-important</span>
+<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a><span class="fu">## Documented sampling bias (DEP C.4)</span></span>
 <span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: artist-list</span></span>
+<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a>Spotify&#39;s Browse and Search endpoints return results ranked by</span>
+<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a>popularity. There is no mechanism for random artist retrieval via the</span>
+<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a>API. The sample is therefore biased toward the high end of the</span>
+<span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a>popularity distribution.</span>
 <span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a><span class="co"># Spotify Artist IDs for top-10 artists per genre</span></span>
-<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a><span class="co"># (resolved before extraction — not dynamically queried)</span></span>
-<span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a><span class="co"># Full list; shown here for pop and rock as illustration.</span></span>
-<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a>artist_ids <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a>  <span class="at">pop =</span> <span class="fu">c</span>(</span>
-<span id="cb12-159"><a href="#cb12-159" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;06HL4z0CvFAxyc27GXpf02&quot;</span>,   <span class="co"># Taylor Swift</span></span>
-<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1uNFoZAHBGtllmzznpCI3s&quot;</span>,   <span class="co"># Justin Bieber</span></span>
-<span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3TVXtAsR1Inumwj472S9r4&quot;</span>,   <span class="co"># Drake</span></span>
-<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;4dpARuHxo51G3z768sgnrY&quot;</span>,   <span class="co"># Adele</span></span>
-<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;6eUKZXaKkcviH0Ku9w2n3V&quot;</span>,   <span class="co"># Ed Sheeran</span></span>
-<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;7dGJo4pcD2V6oG8kP0tJRR&quot;</span>,   <span class="co"># Eminem</span></span>
-<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1Xyo4u8uXC1ZmMpatF05PJ&quot;</span>,   <span class="co"># The Weeknd</span></span>
-<span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;66CXWjxzNUsdJxJ2JdwvnR&quot;</span>,   <span class="co"># Ariana Grande</span></span>
-<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0du5cEVh5yTK9QJze8zA0C&quot;</span>,   <span class="co"># Bruno Mars</span></span>
-<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3WrFJ7ztbogyGnTHbHJFl2&quot;</span>    <span class="co"># The Beatles</span></span>
-<span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a>  <span class="at">rock =</span> <span class="fu">c</span>(</span>
-<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;22bE4uQ6baNwSHPVcDxLCe&quot;</span>,   <span class="co"># The Rolling Stones</span></span>
-<span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;36QJpDe2go2KgaRleHCDTp&quot;</span>,   <span class="co"># Led Zeppelin</span></span>
-<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;711MCceyCBcFnzjGY4Q7Un&quot;</span>,   <span class="co"># AC/DC</span></span>
-<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;5K4W6rqBFWDnAN6FQUkS6x&quot;</span>,   <span class="co"># Kanye West (crossover)</span></span>
-<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;12Chz98pHFMPJEknJQMWqN&quot;</span>,   <span class="co"># Metallica</span></span>
-<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0k17h0D3J5VfsdmQ1iZtE9&quot;</span>,   <span class="co"># Pink Floyd</span></span>
-<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0oSGxfWSnnOXhD2fKuz2Gy&quot;</span>,   <span class="co"># David Bowie</span></span>
-<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1Cs0zKBU1kc0i8ypK3B9ai&quot;</span>,   <span class="co"># Radiohead</span></span>
-<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;7u6zL7kqpgLPiNbuCxsdAL&quot;</span>,   <span class="co"># Arctic Monkeys</span></span>
-<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3YQKmKGau1PzlVlkL1iAx7&quot;</span>    <span class="co"># Tame Impala</span></span>
-<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a>  <span class="co"># hip-hop, country, electronic, r-and-b: full list in supplementary</span></span>
-<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a>  <span class="co"># materials. Pattern is identical — replace artist IDs only.</span></span>
-<span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a>total_artists <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">lengths</span>(artist_ids))</span>
-<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total artists to extract:&quot;</span>, total_artists, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Genres:&quot;</span>, <span class="fu">paste</span>(<span class="fu">names</span>(artist_ids), <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 3 — Define the Extraction Function</span></span>
-<span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.3 Access &amp; Technical Plan — rate limiting, error</span>
-<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a>handling, exclusion criteria</span>
-<span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-200"><a href="#cb12-200" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract-function</span></span>
-<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a>get_artist_features <span class="ot">&lt;-</span> <span class="cf">function</span>(artist_id, genre) {</span>
-<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- DEP C.3: Rate limiting ---</span></span>
-<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Empirically determined limit ~100 req/min (see DEP C.3).</span></span>
-<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 0.5 sec delay keeps us well under that threshold.</span></span>
-<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.5</span>)</span>
-<span id="cb12-209"><a href="#cb12-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tryCatch</span>({</span>
-<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a>    feats <span class="ot">&lt;-</span> <span class="fu">get_artist_audio_features</span>(</span>
-<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a>      <span class="at">artist         =</span> artist_id,</span>
-<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a>      <span class="at">authorization  =</span> access_token,</span>
-<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a>      <span class="at">include_groups =</span> <span class="st">&quot;album&quot;</span>  <span class="co"># DEP C.4 Exclusion: compilations excluded</span></span>
-<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a>                                <span class="co"># by requesting only &quot;album&quot; type</span></span>
-<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Tag with genre for stratified analysis</span></span>
-<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a>    feats<span class="sc">$</span>genre <span class="ot">&lt;-</span> genre</span>
-<span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;  [OK] %s (%s) — %d tracks</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
-<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a>                feats<span class="sc">$</span>artist_name[<span class="dv">1</span>], genre, <span class="fu">nrow</span>(feats)))</span>
-<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(feats)</span>
-<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
-<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a>    <span class="co"># HTTP 429 (Too Many Requests) or other error: log and continue</span></span>
-<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;  [FAIL] %s (%s) — %s</span><span class="sc">\n</span><span class="st">&quot;</span>, artist_id, genre, e<span class="sc">$</span>message))</span>
-<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NULL</span>)</span>
-<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a>  })</span>
-<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 4 — Run the Extraction</span></span>
-<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling</span>
-<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a><span class="in">`map2_dfr()`</span> iterates over the artist IDs and genre labels in parallel,</span>
-<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a>calling the extraction function for each artist and binding results</span>
-<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a>row-wise into a single data frame.</span>
-<span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract</span></span>
+<span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a>This is a property of the data **source**, not solely a choice of the</span>
+<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a>analyst. The DEP records this distinction explicitly so that readers of</span>
+<span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a>the eventual analysis understand the provenance of the range</span>
+<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a>restriction.</span>
+<span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: artist-list</span></span>
+<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a><span class="co"># Spotify Artist IDs for top-10 artists per genre</span></span>
+<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a><span class="co"># (resolved before extraction — not dynamically queried)</span></span>
+<span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a><span class="co"># Full list; shown here for pop and rock as illustration.</span></span>
+<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a>artist_ids <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a>  <span class="at">pop =</span> <span class="fu">c</span>(</span>
+<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;06HL4z0CvFAxyc27GXpf02&quot;</span>,   <span class="co"># Taylor Swift</span></span>
+<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1uNFoZAHBGtllmzznpCI3s&quot;</span>,   <span class="co"># Justin Bieber</span></span>
+<span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3TVXtAsR1Inumwj472S9r4&quot;</span>,   <span class="co"># Drake</span></span>
+<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;4dpARuHxo51G3z768sgnrY&quot;</span>,   <span class="co"># Adele</span></span>
+<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;6eUKZXaKkcviH0Ku9w2n3V&quot;</span>,   <span class="co"># Ed Sheeran</span></span>
+<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;7dGJo4pcD2V6oG8kP0tJRR&quot;</span>,   <span class="co"># Eminem</span></span>
+<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1Xyo4u8uXC1ZmMpatF05PJ&quot;</span>,   <span class="co"># The Weeknd</span></span>
+<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;66CXWjxzNUsdJxJ2JdwvnR&quot;</span>,   <span class="co"># Ariana Grande</span></span>
+<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0du5cEVh5yTK9QJze8zA0C&quot;</span>,   <span class="co"># Bruno Mars</span></span>
+<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3WrFJ7ztbogyGnTHbHJFl2&quot;</span>    <span class="co"># The Beatles</span></span>
+<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a>  <span class="at">rock =</span> <span class="fu">c</span>(</span>
+<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;22bE4uQ6baNwSHPVcDxLCe&quot;</span>,   <span class="co"># The Rolling Stones</span></span>
+<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;36QJpDe2go2KgaRleHCDTp&quot;</span>,   <span class="co"># Led Zeppelin</span></span>
+<span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;711MCceyCBcFnzjGY4Q7Un&quot;</span>,   <span class="co"># AC/DC</span></span>
+<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;5K4W6rqBFWDnAN6FQUkS6x&quot;</span>,   <span class="co"># Kanye West (crossover)</span></span>
+<span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;12Chz98pHFMPJEknJQMWqN&quot;</span>,   <span class="co"># Metallica</span></span>
+<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0k17h0D3J5VfsdmQ1iZtE9&quot;</span>,   <span class="co"># Pink Floyd</span></span>
+<span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;0oSGxfWSnnOXhD2fKuz2Gy&quot;</span>,   <span class="co"># David Bowie</span></span>
+<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;1Cs0zKBU1kc0i8ypK3B9ai&quot;</span>,   <span class="co"># Radiohead</span></span>
+<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;7u6zL7kqpgLPiNbuCxsdAL&quot;</span>,   <span class="co"># Arctic Monkeys</span></span>
+<span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;3YQKmKGau1PzlVlkL1iAx7&quot;</span>    <span class="co"># Tame Impala</span></span>
+<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a>  <span class="co"># hip-hop, country, electronic, r-and-b: full list in supplementary</span></span>
+<span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a>  <span class="co"># materials. Pattern is identical — replace artist IDs only.</span></span>
+<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a>total_artists <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">lengths</span>(artist_ids))</span>
+<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total artists to extract:&quot;</span>, total_artists, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-199"><a href="#cb12-199" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Genres:&quot;</span>, <span class="fu">paste</span>(<span class="fu">names</span>(artist_ids), <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-200"><a href="#cb12-200" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 3 — Define the Extraction Function</span></span>
+<span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.3 Access &amp; Technical Plan — rate limiting, error</span>
+<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a>handling, exclusion criteria</span>
+<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract-function</span></span>
+<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a>get_artist_features <span class="ot">&lt;-</span> <span class="cf">function</span>(artist_id, genre) {</span>
+<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- DEP C.3: Rate limiting ---</span></span>
+<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Empirically determined limit ~100 req/min (see DEP C.3).</span></span>
+<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 0.5 sec delay keeps us well under that threshold.</span></span>
+<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.5</span>)</span>
+<span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tryCatch</span>({</span>
+<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a>    feats <span class="ot">&lt;-</span> <span class="fu">get_artist_audio_features</span>(</span>
+<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a>      <span class="at">artist         =</span> artist_id,</span>
+<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a>      <span class="at">authorization  =</span> access_token,</span>
+<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a>      <span class="at">include_groups =</span> <span class="st">&quot;album&quot;</span>  <span class="co"># DEP C.4 Exclusion: compilations excluded</span></span>
+<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a>                                <span class="co"># by requesting only &quot;album&quot; type</span></span>
+<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Tag with genre for stratified analysis</span></span>
+<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a>    feats<span class="sc">$</span>genre <span class="ot">&lt;-</span> genre</span>
+<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;  [OK] %s (%s) — %d tracks</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a>                feats<span class="sc">$</span>artist_name[<span class="dv">1</span>], genre, <span class="fu">nrow</span>(feats)))</span>
+<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(feats)</span>
+<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a>  }, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>    <span class="co"># HTTP 429 (Too Many Requests) or other error: log and continue</span></span>
+<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;  [FAIL] %s (%s) — %s</span><span class="sc">\n</span><span class="st">&quot;</span>, artist_id, genre, e<span class="sc">$</span>message))</span>
+<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NULL</span>)</span>
+<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 4 — Run the Extraction</span></span>
 <span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a><span class="co"># Build parallel vectors of (artist_id, genre) for map2_dfr</span></span>
-<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a>genre_labels <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fu">names</span>(artist_ids), <span class="fu">lengths</span>(artist_ids))</span>
-<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a>artist_vec   <span class="ot">&lt;-</span> <span class="fu">unlist</span>(artist_ids)</span>
-<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;=== Starting Spotify extraction ===</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total artists:&quot;</span>, <span class="fu">length</span>(artist_vec), <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-253"><a href="#cb12-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-254"><a href="#cb12-254" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> <span class="fu">map2_dfr</span>(genre_labels, artist_vec,</span>
-<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a>                         <span class="sc">~</span> <span class="fu">get_artist_features</span>(.y, .x))</span>
-<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">=== Extraction complete ===</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total tracks extracted:&quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 5 — Apply Exclusion Criteria</span></span>
+<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling</span>
+<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a><span class="in">`map2_dfr()`</span> iterates over the artist IDs and genre labels in parallel,</span>
+<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a>calling the extraction function for each artist and binding results</span>
+<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a>row-wise into a single data frame.</span>
+<span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: extract</span></span>
+<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a><span class="co"># Build parallel vectors of (artist_id, genre) for map2_dfr</span></span>
+<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a>genre_labels <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fu">names</span>(artist_ids), <span class="fu">lengths</span>(artist_ids))</span>
+<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a>artist_vec   <span class="ot">&lt;-</span> <span class="fu">unlist</span>(artist_ids)</span>
+<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;=== Starting Spotify extraction ===</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total artists:&quot;</span>, <span class="fu">length</span>(artist_vec), <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
 <span id="cb12-264"><a href="#cb12-264" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling — *&quot;Exclusion criteria</span>
-<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a>pre-specified: compilation albums; tracks with popularity = 0; tracks</span>
-<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a>missing audio features.&quot;*</span>
-<span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a>Each exclusion is applied sequentially with a count logged before and</span>
-<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a>after. This produces the audit trail required by the DEP.</span>
+<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> <span class="fu">map2_dfr</span>(genre_labels, artist_vec,</span>
+<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a>                         <span class="sc">~</span> <span class="fu">get_artist_features</span>(.y, .x))</span>
+<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">=== Extraction complete ===</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total tracks extracted:&quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: exclusions</span></span>
-<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a>n_start <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_features)</span>
-<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Tracks before exclusions:&quot;</span>, n_start, <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 5 — Apply Exclusion Criteria</span></span>
+<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.4 Scope &amp; Sampling — *&quot;Exclusion criteria</span>
+<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a>pre-specified: compilation albums; tracks with popularity = 0; tracks</span>
+<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a>missing audio features.&quot;*</span>
 <span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.4 Exclusion 1: Popularity = 0 ---</span></span>
-<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a><span class="co"># Indicates inactive or removed content.</span></span>
-<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a>excl_zero_pop <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">filter</span>(track_popularity <span class="sc">==</span> <span class="dv">0</span>)</span>
-<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Excluded (popularity = 0):&quot;</span>, <span class="fu">nrow</span>(excl_zero_pop), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">filter</span>(track_popularity <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.4 Exclusion 2: Missing audio features ---</span></span>
-<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a><span class="co"># Any track missing values in the 13 feature columns is excluded.</span></span>
-<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a>audio_feature_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;danceability&quot;</span>, <span class="st">&quot;energy&quot;</span>, <span class="st">&quot;loudness&quot;</span>, <span class="st">&quot;speechiness&quot;</span>,</span>
-<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;acousticness&quot;</span>, <span class="st">&quot;instrumentalness&quot;</span>, <span class="st">&quot;liveness&quot;</span>, <span class="st">&quot;valence&quot;</span>,</span>
-<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;tempo&quot;</span>, <span class="st">&quot;duration_ms&quot;</span>, <span class="st">&quot;time_signature&quot;</span>, <span class="st">&quot;key&quot;</span>, <span class="st">&quot;mode&quot;</span></span>
-<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a>excl_missing <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span></span>
-<span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">if_any</span>(<span class="fu">all_of</span>(audio_feature_cols), is.na))</span>
-<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Excluded (missing audio features):&quot;</span>, <span class="fu">nrow</span>(excl_missing), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span></span>
-<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">if_any</span>(<span class="fu">all_of</span>(audio_feature_cols), is.na))</span>
-<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a>n_end <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_features)</span>
-<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Tracks after all exclusions:&quot;</span>, n_end, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total excluded:&quot;</span>, n_start <span class="sc">-</span> n_end, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 6 — Validate Extraction Results</span></span>
-<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.5 Validation &amp; Contingency — *&quot;Validation</span>
-<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a>checkpoints pre-specified before extraction begins.&quot;*</span>
-<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: validate</span></span>
-<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;=== Running validation checks ===</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-317"><a href="#cb12-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 1 — Minimum tracks per artist ---</span></span>
-<span id="cb12-319"><a href="#cb12-319" aria-hidden="true" tabindex="-1"></a>artist_counts <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">count</span>(artist_name)</span>
-<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a>under_minimum <span class="ot">&lt;-</span> artist_counts <span class="sc">|&gt;</span> <span class="fu">filter</span>(n <span class="sc">&lt;</span> <span class="dv">20</span>)</span>
-<span id="cb12-321"><a href="#cb12-321" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">nrow</span>(under_minimum) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb12-322"><a href="#cb12-322" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(</span>
-<span id="cb12-323"><a href="#cb12-323" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;The following artists have fewer than 20 tracks — &quot;</span>,</span>
-<span id="cb12-324"><a href="#cb12-324" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;likely a retrieval error:</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
-<span id="cb12-325"><a href="#cb12-325" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste</span>(under_minimum<span class="sc">$</span>artist_name, <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>)</span>
-<span id="cb12-326"><a href="#cb12-326" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb12-327"><a href="#cb12-327" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb12-328"><a href="#cb12-328" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 1 passed: all artists have &gt;= 20 tracks.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-329"><a href="#cb12-329" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-330"><a href="#cb12-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-331"><a href="#cb12-331" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 2 — Range checks on bounded audio features ---</span></span>
-<span id="cb12-332"><a href="#cb12-332" aria-hidden="true" tabindex="-1"></a>bounded_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;danceability&quot;</span>, <span class="st">&quot;energy&quot;</span>, <span class="st">&quot;speechiness&quot;</span>,</span>
-<span id="cb12-333"><a href="#cb12-333" aria-hidden="true" tabindex="-1"></a>                  <span class="st">&quot;acousticness&quot;</span>, <span class="st">&quot;instrumentalness&quot;</span>, <span class="st">&quot;liveness&quot;</span>, <span class="st">&quot;valence&quot;</span>)</span>
-<span id="cb12-334"><a href="#cb12-334" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (col <span class="cf">in</span> bounded_cols) {</span>
-<span id="cb12-335"><a href="#cb12-335" aria-hidden="true" tabindex="-1"></a>  out_of_range <span class="ot">&lt;-</span> <span class="fu">sum</span>(</span>
-<span id="cb12-336"><a href="#cb12-336" aria-hidden="true" tabindex="-1"></a>    all_features[[col]] <span class="sc">&lt;</span> <span class="dv">0</span> <span class="sc">|</span> all_features[[col]] <span class="sc">&gt;</span> <span class="dv">1</span>,</span>
-<span id="cb12-337"><a href="#cb12-337" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
-<span id="cb12-338"><a href="#cb12-338" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb12-339"><a href="#cb12-339" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (out_of_range <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb12-340"><a href="#cb12-340" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&quot;VALIDATION FAILED: &quot;</span>, out_of_range,</span>
-<span id="cb12-341"><a href="#cb12-341" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot; out-of-range values in column: &quot;</span>, col)</span>
-<span id="cb12-342"><a href="#cb12-342" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb12-343"><a href="#cb12-343" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-344"><a href="#cb12-344" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Check 2 passed: all bounded audio features in [0, 1].</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-345"><a href="#cb12-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-346"><a href="#cb12-346" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 3 — Tempo range ---</span></span>
-<span id="cb12-347"><a href="#cb12-347" aria-hidden="true" tabindex="-1"></a>tempo_violations <span class="ot">&lt;-</span> <span class="fu">sum</span>(</span>
-<span id="cb12-348"><a href="#cb12-348" aria-hidden="true" tabindex="-1"></a>  all_features<span class="sc">$</span>tempo <span class="sc">&lt;</span> <span class="dv">40</span> <span class="sc">|</span> all_features<span class="sc">$</span>tempo <span class="sc">&gt;</span> <span class="dv">220</span>,</span>
-<span id="cb12-349"><a href="#cb12-349" aria-hidden="true" tabindex="-1"></a>  <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
-<span id="cb12-350"><a href="#cb12-350" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-351"><a href="#cb12-351" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (tempo_violations <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb12-352"><a href="#cb12-352" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(tempo_violations, <span class="st">&quot; tracks with tempo outside 40–220 BPM.&quot;</span>)</span>
-<span id="cb12-353"><a href="#cb12-353" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb12-354"><a href="#cb12-354" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 3 passed: all tempo values in 40–220 BPM.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-355"><a href="#cb12-355" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a>Each exclusion is applied sequentially with a count logged before and</span>
+<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a>after. This produces the audit trail required by the DEP.</span>
+<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: exclusions</span></span>
+<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a>n_start <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_features)</span>
+<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Tracks before exclusions:&quot;</span>, n_start, <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.4 Exclusion 1: Popularity = 0 ---</span></span>
+<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a><span class="co"># Indicates inactive or removed content.</span></span>
+<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a>excl_zero_pop <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">filter</span>(track_popularity <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Excluded (popularity = 0):&quot;</span>, <span class="fu">nrow</span>(excl_zero_pop), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">filter</span>(track_popularity <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.4 Exclusion 2: Missing audio features ---</span></span>
+<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a><span class="co"># Any track missing values in the 13 feature columns is excluded.</span></span>
+<span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a>audio_feature_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;danceability&quot;</span>, <span class="st">&quot;energy&quot;</span>, <span class="st">&quot;loudness&quot;</span>, <span class="st">&quot;speechiness&quot;</span>,</span>
+<span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;acousticness&quot;</span>, <span class="st">&quot;instrumentalness&quot;</span>, <span class="st">&quot;liveness&quot;</span>, <span class="st">&quot;valence&quot;</span>,</span>
+<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;tempo&quot;</span>, <span class="st">&quot;duration_ms&quot;</span>, <span class="st">&quot;time_signature&quot;</span>, <span class="st">&quot;key&quot;</span>, <span class="st">&quot;mode&quot;</span></span>
+<span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a>excl_missing <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span></span>
+<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">if_any</span>(<span class="fu">all_of</span>(audio_feature_cols), is.na))</span>
+<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Excluded (missing audio features):&quot;</span>, <span class="fu">nrow</span>(excl_missing), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a>all_features <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span></span>
+<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">if_any</span>(<span class="fu">all_of</span>(audio_feature_cols), is.na))</span>
+<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a>n_end <span class="ot">&lt;-</span> <span class="fu">nrow</span>(all_features)</span>
+<span id="cb12-311"><a href="#cb12-311" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Tracks after all exclusions:&quot;</span>, n_end, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-312"><a href="#cb12-312" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Total excluded:&quot;</span>, n_start <span class="sc">-</span> n_end, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-317"><a href="#cb12-317" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 6 — Validate Extraction Results</span></span>
+<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-319"><a href="#cb12-319" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.5 Validation &amp; Contingency — *&quot;Validation</span>
+<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a>checkpoints pre-specified before extraction begins.&quot;*</span>
+<span id="cb12-321"><a href="#cb12-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-324"><a href="#cb12-324" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-325"><a href="#cb12-325" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: validate</span></span>
+<span id="cb12-326"><a href="#cb12-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-327"><a href="#cb12-327" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;=== Running validation checks ===</span><span class="sc">\n\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-328"><a href="#cb12-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-329"><a href="#cb12-329" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 1 — Minimum tracks per artist ---</span></span>
+<span id="cb12-330"><a href="#cb12-330" aria-hidden="true" tabindex="-1"></a>artist_counts <span class="ot">&lt;-</span> all_features <span class="sc">|&gt;</span> <span class="fu">count</span>(artist_name)</span>
+<span id="cb12-331"><a href="#cb12-331" aria-hidden="true" tabindex="-1"></a>under_minimum <span class="ot">&lt;-</span> artist_counts <span class="sc">|&gt;</span> <span class="fu">filter</span>(n <span class="sc">&lt;</span> <span class="dv">20</span>)</span>
+<span id="cb12-332"><a href="#cb12-332" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">nrow</span>(under_minimum) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb12-333"><a href="#cb12-333" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(</span>
+<span id="cb12-334"><a href="#cb12-334" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;The following artists have fewer than 20 tracks — &quot;</span>,</span>
+<span id="cb12-335"><a href="#cb12-335" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;likely a retrieval error:</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb12-336"><a href="#cb12-336" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste</span>(under_minimum<span class="sc">$</span>artist_name, <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>)</span>
+<span id="cb12-337"><a href="#cb12-337" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-338"><a href="#cb12-338" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb12-339"><a href="#cb12-339" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 1 passed: all artists have &gt;= 20 tracks.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-340"><a href="#cb12-340" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-341"><a href="#cb12-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-342"><a href="#cb12-342" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 2 — Range checks on bounded audio features ---</span></span>
+<span id="cb12-343"><a href="#cb12-343" aria-hidden="true" tabindex="-1"></a>bounded_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;danceability&quot;</span>, <span class="st">&quot;energy&quot;</span>, <span class="st">&quot;speechiness&quot;</span>,</span>
+<span id="cb12-344"><a href="#cb12-344" aria-hidden="true" tabindex="-1"></a>                  <span class="st">&quot;acousticness&quot;</span>, <span class="st">&quot;instrumentalness&quot;</span>, <span class="st">&quot;liveness&quot;</span>, <span class="st">&quot;valence&quot;</span>)</span>
+<span id="cb12-345"><a href="#cb12-345" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (col <span class="cf">in</span> bounded_cols) {</span>
+<span id="cb12-346"><a href="#cb12-346" aria-hidden="true" tabindex="-1"></a>  out_of_range <span class="ot">&lt;-</span> <span class="fu">sum</span>(</span>
+<span id="cb12-347"><a href="#cb12-347" aria-hidden="true" tabindex="-1"></a>    all_features[[col]] <span class="sc">&lt;</span> <span class="dv">0</span> <span class="sc">|</span> all_features[[col]] <span class="sc">&gt;</span> <span class="dv">1</span>,</span>
+<span id="cb12-348"><a href="#cb12-348" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-349"><a href="#cb12-349" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-350"><a href="#cb12-350" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (out_of_range <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb12-351"><a href="#cb12-351" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&quot;VALIDATION FAILED: &quot;</span>, out_of_range,</span>
+<span id="cb12-352"><a href="#cb12-352" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot; out-of-range values in column: &quot;</span>, col)</span>
+<span id="cb12-353"><a href="#cb12-353" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-354"><a href="#cb12-354" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-355"><a href="#cb12-355" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Check 2 passed: all bounded audio features in [0, 1].</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb12-356"><a href="#cb12-356" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-357"><a href="#cb12-357" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 4 — Popularity is integer in [0, 100] ---</span></span>
-<span id="cb12-358"><a href="#cb12-358" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(</span>
-<span id="cb12-359"><a href="#cb12-359" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Popularity out of [0, 100]&quot;</span> <span class="ot">=</span></span>
-<span id="cb12-360"><a href="#cb12-360" aria-hidden="true" tabindex="-1"></a>    <span class="fu">all</span>(all_features<span class="sc">$</span>track_popularity <span class="sc">&gt;=</span> <span class="dv">0</span> <span class="sc">&amp;</span></span>
-<span id="cb12-361"><a href="#cb12-361" aria-hidden="true" tabindex="-1"></a>        all_features<span class="sc">$</span>track_popularity <span class="sc">&lt;=</span> <span class="dv">100</span>,</span>
-<span id="cb12-362"><a href="#cb12-362" aria-hidden="true" tabindex="-1"></a>        <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-363"><a href="#cb12-363" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-364"><a href="#cb12-364" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Check 4 passed: all popularity values in [0, 100].</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-365"><a href="#cb12-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-366"><a href="#cb12-366" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 5 — Duplicate track IDs ---</span></span>
-<span id="cb12-367"><a href="#cb12-367" aria-hidden="true" tabindex="-1"></a>n_dupes <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">duplicated</span>(all_features<span class="sc">$</span>track_id))</span>
-<span id="cb12-368"><a href="#cb12-368" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (n_dupes <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb12-369"><a href="#cb12-369" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(n_dupes, <span class="st">&quot; duplicate track IDs detected — investigate &quot;</span>,</span>
-<span id="cb12-370"><a href="#cb12-370" aria-hidden="true" tabindex="-1"></a>          <span class="st">&quot;before analysis (may indicate artists shared across genres).&quot;</span>)</span>
-<span id="cb12-371"><a href="#cb12-371" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb12-372"><a href="#cb12-372" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 5 passed: no duplicate track IDs.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-373"><a href="#cb12-373" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-374"><a href="#cb12-374" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-375"><a href="#cb12-375" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">All validation checks complete.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-376"><a href="#cb12-376" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-377"><a href="#cb12-377" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-378"><a href="#cb12-378" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-379"><a href="#cb12-379" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-380"><a href="#cb12-380" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 7 — Save in Two Formats</span></span>
-<span id="cb12-381"><a href="#cb12-381" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-382"><a href="#cb12-382" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.3 Access &amp; Technical Plan — *&quot;Two formats per</span>
-<span id="cb12-383"><a href="#cb12-383" aria-hidden="true" tabindex="-1"></a>extraction: <span class="in">`.rds`</span> (R native, preserving data types) for analysis;</span>
-<span id="cb12-384"><a href="#cb12-384" aria-hidden="true" tabindex="-1"></a><span class="in">`.csv`</span> for portability.&quot;*</span>
+<span id="cb12-357"><a href="#cb12-357" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 3 — Tempo range ---</span></span>
+<span id="cb12-358"><a href="#cb12-358" aria-hidden="true" tabindex="-1"></a>tempo_violations <span class="ot">&lt;-</span> <span class="fu">sum</span>(</span>
+<span id="cb12-359"><a href="#cb12-359" aria-hidden="true" tabindex="-1"></a>  all_features<span class="sc">$</span>tempo <span class="sc">&lt;</span> <span class="dv">40</span> <span class="sc">|</span> all_features<span class="sc">$</span>tempo <span class="sc">&gt;</span> <span class="dv">220</span>,</span>
+<span id="cb12-360"><a href="#cb12-360" aria-hidden="true" tabindex="-1"></a>  <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-361"><a href="#cb12-361" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-362"><a href="#cb12-362" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (tempo_violations <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb12-363"><a href="#cb12-363" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(tempo_violations, <span class="st">&quot; tracks with tempo outside 40–220 BPM.&quot;</span>)</span>
+<span id="cb12-364"><a href="#cb12-364" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb12-365"><a href="#cb12-365" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 3 passed: all tempo values in 40–220 BPM.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-366"><a href="#cb12-366" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-367"><a href="#cb12-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-368"><a href="#cb12-368" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 4 — Popularity is integer in [0, 100] ---</span></span>
+<span id="cb12-369"><a href="#cb12-369" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(</span>
+<span id="cb12-370"><a href="#cb12-370" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Popularity out of [0, 100]&quot;</span> <span class="ot">=</span></span>
+<span id="cb12-371"><a href="#cb12-371" aria-hidden="true" tabindex="-1"></a>    <span class="fu">all</span>(all_features<span class="sc">$</span>track_popularity <span class="sc">&gt;=</span> <span class="dv">0</span> <span class="sc">&amp;</span></span>
+<span id="cb12-372"><a href="#cb12-372" aria-hidden="true" tabindex="-1"></a>        all_features<span class="sc">$</span>track_popularity <span class="sc">&lt;=</span> <span class="dv">100</span>,</span>
+<span id="cb12-373"><a href="#cb12-373" aria-hidden="true" tabindex="-1"></a>        <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-374"><a href="#cb12-374" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-375"><a href="#cb12-375" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Check 4 passed: all popularity values in [0, 100].</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-376"><a href="#cb12-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-377"><a href="#cb12-377" aria-hidden="true" tabindex="-1"></a><span class="co"># --- DEP C.5: Check 5 — Duplicate track IDs ---</span></span>
+<span id="cb12-378"><a href="#cb12-378" aria-hidden="true" tabindex="-1"></a>n_dupes <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">duplicated</span>(all_features<span class="sc">$</span>track_id))</span>
+<span id="cb12-379"><a href="#cb12-379" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (n_dupes <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb12-380"><a href="#cb12-380" aria-hidden="true" tabindex="-1"></a>  <span class="fu">warning</span>(n_dupes, <span class="st">&quot; duplicate track IDs detected — investigate &quot;</span>,</span>
+<span id="cb12-381"><a href="#cb12-381" aria-hidden="true" tabindex="-1"></a>          <span class="st">&quot;before analysis (may indicate artists shared across genres).&quot;</span>)</span>
+<span id="cb12-382"><a href="#cb12-382" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb12-383"><a href="#cb12-383" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Check 5 passed: no duplicate track IDs.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-384"><a href="#cb12-384" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb12-385"><a href="#cb12-385" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-388"><a href="#cb12-388" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-389"><a href="#cb12-389" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: save</span></span>
+<span id="cb12-386"><a href="#cb12-386" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">All validation checks complete.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-387"><a href="#cb12-387" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-388"><a href="#cb12-388" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-389"><a href="#cb12-389" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
 <span id="cb12-390"><a href="#cb12-390" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-391"><a href="#cb12-391" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb12-391"><a href="#cb12-391" aria-hidden="true" tabindex="-1"></a><span class="fu"># Step 7 — Save in Two Formats</span></span>
 <span id="cb12-392"><a href="#cb12-392" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-393"><a href="#cb12-393" aria-hidden="true" tabindex="-1"></a>rds_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/spotify/spotify_all_&quot;</span>, timestamp, <span class="st">&quot;.rds&quot;</span>)</span>
-<span id="cb12-394"><a href="#cb12-394" aria-hidden="true" tabindex="-1"></a>csv_path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;data/raw/spotify/spotify_all_&quot;</span>, timestamp, <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb12-395"><a href="#cb12-395" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-396"><a href="#cb12-396" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(all_features, rds_path)</span>
-<span id="cb12-397"><a href="#cb12-397" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(all_features, csv_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb12-398"><a href="#cb12-398" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-399"><a href="#cb12-399" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .rds to:&quot;</span>, rds_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-400"><a href="#cb12-400" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .csv to:&quot;</span>, csv_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-401"><a href="#cb12-401" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction summary:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-402"><a href="#cb12-402" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Tracks:     &quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-403"><a href="#cb12-403" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Variables:  &quot;</span>, <span class="fu">ncol</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-404"><a href="#cb12-404" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Genres:     &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>genre)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-405"><a href="#cb12-405" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Artists:    &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>artist_name)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-406"><a href="#cb12-406" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Date:       &quot;</span>, timestamp, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb12-407"><a href="#cb12-407" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-408"><a href="#cb12-408" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-409"><a href="#cb12-409" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-410"><a href="#cb12-410" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a><span class="fu"># Contingency Notes {.unnumbered}</span></span>
-<span id="cb12-412"><a href="#cb12-412" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.5 Validation &amp; Contingency</span>
-<span id="cb12-414"><a href="#cb12-414" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a>As documented in the DEP, four contingency scenarios were identified in</span>
-<span id="cb12-416"><a href="#cb12-416" aria-hidden="true" tabindex="-1"></a>September 2021. All four materialized between 2024 and 2026:</span>
+<span id="cb12-393"><a href="#cb12-393" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.3 Access &amp; Technical Plan — *&quot;Two formats per</span>
+<span id="cb12-394"><a href="#cb12-394" aria-hidden="true" tabindex="-1"></a>extraction: <span class="in">`.rds`</span> (R native, preserving data types) for analysis;</span>
+<span id="cb12-395"><a href="#cb12-395" aria-hidden="true" tabindex="-1"></a><span class="in">`.csv`</span> for portability.&quot;*</span>
+<span id="cb12-396"><a href="#cb12-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-399"><a href="#cb12-399" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-400"><a href="#cb12-400" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: save</span></span>
+<span id="cb12-401"><a href="#cb12-401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-402"><a href="#cb12-402" aria-hidden="true" tabindex="-1"></a>rds_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;spotify_all.rds&quot;</span>)</span>
+<span id="cb12-403"><a href="#cb12-403" aria-hidden="true" tabindex="-1"></a>csv_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(RUN_DIR, <span class="st">&quot;spotify_all.csv&quot;</span>)</span>
+<span id="cb12-404"><a href="#cb12-404" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-405"><a href="#cb12-405" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(all_features, rds_path)</span>
+<span id="cb12-406"><a href="#cb12-406" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(all_features, csv_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb12-407"><a href="#cb12-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-408"><a href="#cb12-408" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .rds to:&quot;</span>, rds_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-409"><a href="#cb12-409" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved .csv to:&quot;</span>, csv_path, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-410"><a href="#cb12-410" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Extraction summary:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Tracks:     &quot;</span>, <span class="fu">nrow</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-412"><a href="#cb12-412" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Variables:  &quot;</span>, <span class="fu">ncol</span>(all_features), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Genres:     &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>genre)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-414"><a href="#cb12-414" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Artists:    &quot;</span>, <span class="fu">length</span>(<span class="fu">unique</span>(all_features<span class="sc">$</span>artist_name)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;  Date:       &quot;</span>, RUN_DATE, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb12-416"><a href="#cb12-416" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-417"><a href="#cb12-417" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-418"><a href="#cb12-418" aria-hidden="true" tabindex="-1"></a>**Scenario 1 — Rate limits tighten:** Increase <span class="in">`Sys.sleep()`</span> from 0.5 to</span>
-<span id="cb12-419"><a href="#cb12-419" aria-hidden="true" tabindex="-1"></a>1.0 or 2.0 seconds. Spread extraction across multiple sessions using a</span>
-<span id="cb12-420"><a href="#cb12-420" aria-hidden="true" tabindex="-1"></a>checkpoint file that records which artist IDs have already been</span>
-<span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a>processed.</span>
-<span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a>**Scenario 2 — Audio Features endpoint deprecated (MATERIALIZED Nov.</span>
-<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a>2024):** Fall back to the Kaggle &quot;Spotify Tracks Dataset&quot; snapshot.</span>
-<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>Document this substitution in your analysis with the limitations noted</span>
-<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a>in DEP C.1 (no DEP for the Kaggle dataset; provenance unclear).</span>
-<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a>**Scenario 3 — `spotifyr` removed from CRAN (MATERIALIZED):** Restore</span>
-<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>the pinned version using:</span>
-<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a><span class="in">``` r</span></span>
-<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>renv<span class="sc">::</span><span class="fu">restore</span>()   <span class="co"># requires renv.lock created at time of extraction</span></span>
-<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>If no lock file exists, install from GitHub:</span>
+<span id="cb12-418"><a href="#cb12-418" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-419"><a href="#cb12-419" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-420"><a href="#cb12-420" aria-hidden="true" tabindex="-1"></a><span class="fu"># Contingency Notes {.unnumbered}</span></span>
+<span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a>**DEP Reference:** C.5 Validation &amp; Contingency</span>
+<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a>As documented in the DEP, four contingency scenarios were identified in</span>
+<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>September 2021. All four materialized between 2024 and 2026:</span>
+<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>**Scenario 1 — Rate limits tighten:** Increase <span class="in">`Sys.sleep()`</span> from 0.5 to</span>
+<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a>1.0 or 2.0 seconds. Spread extraction across multiple sessions using a</span>
+<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>checkpoint file that records which artist IDs have already been</span>
+<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a>processed.</span>
+<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>**Scenario 2 — Audio Features endpoint deprecated (MATERIALIZED Nov.</span>
+<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a>2024):** Fall back to the Kaggle &quot;Spotify Tracks Dataset&quot; snapshot.</span>
+<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a>Document this substitution in your analysis with the limitations noted</span>
+<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>in DEP C.1 (no DEP for the Kaggle dataset; provenance unclear).</span>
 <span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a><span class="in">``` r</span></span>
-<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;charlie86/spotifyr@v2.2.4&quot;</span>)</span>
-<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-440"><a href="#cb12-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a>**Scenario 4 — Spotify developer account suspended (effectively</span>
-<span id="cb12-442"><a href="#cb12-442" aria-hidden="true" tabindex="-1"></a>materialized):** Pivot to one of these alternative audio metadata</span>
-<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a>sources:</span>
-<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Source <span class="pp">|</span> Programmatic Access <span class="pp">|</span> Coverage <span class="pp">|</span> Notes <span class="pp">|</span></span>
-<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a><span class="pp">|----------------|------------------|----------------|----------------------|</span></span>
-<span id="cb12-447"><a href="#cb12-447" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> MusicBrainz <span class="pp">|</span> Free REST API <span class="pp">|</span> \~2M releases <span class="pp">|</span> No audio features; metadata only <span class="pp">|</span></span>
-<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ListenBrainz <span class="pp">|</span> Free REST API <span class="pp">|</span> Listening data <span class="pp">|</span> Community-submitted <span class="pp">|</span></span>
-<span id="cb12-449"><a href="#cb12-449" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Last.fm <span class="pp">|</span> Free API <span class="pp">|</span> \~185M tracks <span class="pp">|</span> Scrobble-based features <span class="pp">|</span></span>
-<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> AcousticBrainz <span class="pp">|</span> Static dataset (archive) <span class="pp">|</span> \~2M recordings <span class="pp">|</span> Deprecated; archived only <span class="pp">|</span></span>
-<span id="cb12-451"><a href="#cb12-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a>**Scenario 3 — `spotifyr` removed from CRAN (MATERIALIZED):** Restore</span>
+<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>the pinned version using:</span>
+<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-440"><a href="#cb12-440" aria-hidden="true" tabindex="-1"></a><span class="in">``` r</span></span>
+<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a>renv<span class="sc">::</span><span class="fu">restore</span>()   <span class="co"># requires renv.lock created at time of extraction</span></span>
+<span id="cb12-442"><a href="#cb12-442" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a>If no lock file exists, install from GitHub:</span>
+<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a><span class="in">``` r</span></span>
+<span id="cb12-447"><a href="#cb12-447" aria-hidden="true" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;charlie86/spotifyr@v2.2.4&quot;</span>)</span>
+<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-449"><a href="#cb12-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a>**Scenario 4 — Spotify developer account suspended (effectively</span>
+<span id="cb12-451"><a href="#cb12-451" aria-hidden="true" tabindex="-1"></a>materialized):** Pivot to one of these alternative audio metadata</span>
+<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a>sources:</span>
 <span id="cb12-453"><a href="#cb12-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-454"><a href="#cb12-454" aria-hidden="true" tabindex="-1"></a><span class="fu"># Session Info {.unnumbered}</span></span>
-<span id="cb12-455"><a href="#cb12-455" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-458"><a href="#cb12-458" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-459"><a href="#cb12-459" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: session-info</span></span>
-<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
-<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-454"><a href="#cb12-454" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Source <span class="pp">|</span> Programmatic Access <span class="pp">|</span> Coverage <span class="pp">|</span> Notes <span class="pp">|</span></span>
+<span id="cb12-455"><a href="#cb12-455" aria-hidden="true" tabindex="-1"></a><span class="pp">|----------------|------------------|----------------|----------------------|</span></span>
+<span id="cb12-456"><a href="#cb12-456" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> MusicBrainz <span class="pp">|</span> Free REST API <span class="pp">|</span> \~2M releases <span class="pp">|</span> No audio features; metadata only <span class="pp">|</span></span>
+<span id="cb12-457"><a href="#cb12-457" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ListenBrainz <span class="pp">|</span> Free REST API <span class="pp">|</span> Listening data <span class="pp">|</span> Community-submitted <span class="pp">|</span></span>
+<span id="cb12-458"><a href="#cb12-458" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Last.fm <span class="pp">|</span> Free API <span class="pp">|</span> \~185M tracks <span class="pp">|</span> Scrobble-based features <span class="pp">|</span></span>
+<span id="cb12-459"><a href="#cb12-459" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> AcousticBrainz <span class="pp">|</span> Static dataset (archive) <span class="pp">|</span> \~2M recordings <span class="pp">|</span> Deprecated; archived only <span class="pp">|</span></span>
+<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb12-462"><a href="#cb12-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-463"><a href="#cb12-463" aria-hidden="true" tabindex="-1"></a><span class="fu"># Session Info {.unnumbered}</span></span>
+<span id="cb12-464"><a href="#cb12-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-467"><a href="#cb12-467" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-468"><a href="#cb12-468" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: session-info</span></span>
+<span id="cb12-469"><a href="#cb12-469" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb12-470"><a href="#cb12-470" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
